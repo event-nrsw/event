@@ -1,0 +1,91 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>エントリーシステム</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: "Yu Gothic", "Meiryo", sans-serif;
+            background: #f3f4f6;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 420px;
+            padding: 35px 25px;
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+            text-align: center;
+        }
+
+        h1 {
+            margin: 0 0 12px;
+            font-size: 25px;
+            color: #222222;
+        }
+
+        .description {
+            margin-bottom: 30px;
+            color: #666666;
+            font-size: 14px;
+        }
+
+        .menu-button {
+            display: block;
+            width: 100%;
+            padding: 20px 12px;
+            margin-top: 16px;
+            border-radius: 10px;
+            color: #ffffff;
+            font-size: 18px;
+            font-weight: bold;
+            text-decoration: none;
+            transition: opacity 0.2s;
+        }
+
+        .menu-button:hover {
+            opacity: 0.8;
+        }
+
+        .entry {
+            background: #2563eb;
+        }
+
+        .maintenance {
+            background: #374151;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>エントリーシステム</h1>
+        <div class="description">
+            操作するメニューを選択してください
+        </div>
+
+        <a class="menu-button entry"
+           href="https://www.test.com/01.html">
+            1．エントリー
+        </a>
+
+        <a class="menu-button maintenance"
+           href="https://www.test.com/02.html">
+            2．エントリーメンテナンス
+        </a>
+    </div>
+</body>
+</html>
