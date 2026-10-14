@@ -11,7 +11,7 @@
         h2 { text-align: center; color: #2c3e50; }
         .form-group { margin-bottom: 16px; }
         label { display: block; margin-bottom: 6px; font-weight: bold; }
-        input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
         button { width: 100%; padding: 12px; background-color: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
         button:hover { background-color: #2980b9; }
         .link-area { text-align: center; margin-top: 15px; }
@@ -41,6 +41,13 @@
                 <input type="email" id="email">
             </div>
             <div class="form-group" id="group-phone"><label>電話番号</label><input type="tel" id="phone"></div>
+            <!-- 来場予定時刻 -->
+            <div class="form-group" id="group-visitTime">
+                <label>来場予定時刻</label>
+                <select id="visitTime">
+                    <option value="">選択してください</option>
+                </select>
+            </div>
             <button type="submit" id="submitBtn">登録</button>
         </form>
         <div class="link-area">
@@ -83,10 +90,29 @@
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwiogCk79iAsjRyeznlTL4moSD215m7ebLGx8lOA4v752_FmM1TelCdzkc2S-z_D7A4/exec";
     const STORAGE_KEY = 'entry_form_settings';
 
+    // 9:00から17:00まで30分刻みの選択肢を生成する関数
+    function generateTimeOptions() {
+        const selectElem = document.getElementById('visitTime');
+        for (let hour = 9; hour <= 17; hour++) {
+            for (let min = 0; min < 60; min += 30) {
+                // 17時以降の30分（17:30など）は除外する場合のガード
+                if (hour === 17 && min > 0) break;
+                
+                const timeString = `${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+                const option = document.createElement('option');
+                option.value = timeString;
+                option.textContent = timeString;
+                selectElem.appendChild(option);
+            }
+        }
+    }
+
     // ページ読み込み時に設定を反映して不要な項目を非表示・必須解除する
     window.addEventListener('DOMContentLoaded', () => {
+        generateTimeOptions();
+
         const savedSettings = localStorage.getItem(STORAGE_KEY);
-        const allFields = ['company', 'department', 'position', 'name', 'email', 'phone'];
+        const allFields = ['company', 'department', 'position', 'name', 'email', 'phone', 'visitTime'];
         // 設定未保存時はすべて表示
         const activeFields = savedSettings ? JSON.parse(savedSettings) : allFields;
 
@@ -143,7 +169,8 @@
             position: document.getElementById('position').value,
             name: document.getElementById('name').value,
             email: document.getElementById('email').value,
-            phone: document.getElementById('phone').value
+            phone: document.getElementById('phone').value,
+            visitTime: document.getElementById('visitTime').value
         };
 
         sendData(formData);
@@ -187,7 +214,8 @@
                     <strong>登録番号:</strong> ${data.regId}<br>
                     <strong>タイムスタンプ:</strong> ${data.timestamp}<br>
                     ${data.company ? `<strong>社名:</strong> ${data.company}<br>` : ''}
-                    ${data.name ? `<strong>氏名:</strong> ${data.name}` : ''}
+                    ${data.name ? `<strong>氏名:</strong> ${data.name}<br>` : ''}
+                    ${data.visitTime ? `<strong>来場予定時刻:</strong> ${data.visitTime}` : ''}
                 `;
 
                 qrContainer.innerHTML = "";
