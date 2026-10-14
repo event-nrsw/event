@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>参加登録フォーム 設定</title>
+    <style>
+        body { font-family: sans-serif; background-color: #f4f6f9; padding: 20px; color: #333; }
+        .container { max-width: 500px; margin: 0 auto; background: #fff; padding: 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        h2 { text-align: center; color: #2c3e50; }
+        .form-group { margin-bottom: 12px; }
+        label { display: flex; align-items: center; cursor: pointer; font-size: 15px; }
+        input[type="checkbox"] { margin-right: 10px; width: 18px; height: 18px; }
+        /* 必須項目のラベルの色を少し変える、またはそのままでもOKですが薄くならないよう配慮 */
+        input[type="checkbox"]:disabled { cursor: not-allowed; }
+        .required-label { font-weight: bold; color: #2c3e50; }
+        .required-note { font-size: 12px; color: #e74c3c; margin-left: 5px; }
+        button { width: 100%; padding: 12px; background-color: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 15px; }
+        button:hover { background-color: #219653; }
+        .msg { text-align: center; margin-top: 10px; color: #27ae60; font-weight: bold; display: none; }
+        .back-link { text-align: center; margin-top: 15px; font-size: 14px; }
+        .back-link a { color: #3498db; text-decoration: none; }
+        .back-link a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>フォーム項目設定</h2>
+    <p style="font-size: 14px; color: #666;">参加登録フォームに表示する項目を選択してください。</p>
+    
+    <form id="settingForm">
+        <!-- 御社名（必須・変更不可） -->
+        <div class="form-group">
+            <label class="required-label">
+                <input type="checkbox" name="field" value="company" checked disabled> 
+                御社名 <span class="required-note">（必須・常時表示）</span>
+            </label>
+        </div>
+        <div class="form-group"><label><input type="checkbox" name="field" value="department"> 部署</label></div>
+        <div class="form-group"><label><input type="checkbox" name="field" value="position"> 役職</label></div>
+        <div class="form-group"><label><input type="checkbox" name="field" value="name" checked> お氏名</label></div>
+        <!-- メールアドレス（必須・変更不可） -->
+        <div class="form-group">
+            <label class="required-label">
+                <input type="checkbox" name="field" value="email" checked disabled> 
+                メールアドレス <span class="required-note">（必須・常時表示）</span>
+            </label>
+        </div>
+        <div class="form-group"><label><input type="checkbox" name="field" value="phone"> 電話番号</label></div>
+        
+        <button type="submit">設定を保存する</button>
+    </form>
+    <div id="saveMsg" class="msg">保存しました！</div>
+    
+    <div class="back-link">
+        <a href="index.html">← 登録フォームに戻る</a>
+    </div>
+</div>
+
+<script>
+    const STORAGE_KEY = 'entry_form_settings';
+
+    // 読み込み時に保存済み設定を反映
+    window.addEventListener('DOMContentLoaded', () => {
+        const savedSettings = localStorage.getItem(STORAGE_KEY);
+        if (savedSettings) {
+            const activeFields = JSON.parse(savedSettings);
+            document.querySelectorAll('input[name="field"]').forEach(checkbox => {
+                // 必須項目以外は保存された設定を反映
+                if (checkbox.value !== 'company' && checkbox.value !== 'email') {
+                    checkbox.checked = activeFields.includes(checkbox.value);
+                }
+            });
+        }
+    });
+
+    // 保存処理
+    document.getElementById('settingForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const activeFields = [];
+        document.querySelectorAll('input[name="field"]').forEach(checkbox => {
+            // disabled（御社名・メールアドレス）は強制的に含める、それ以外はチェック状態を見る
+            if (checkbox.disabled || checkbox.checked) {
+                activeFields.push(checkbox.value);
+            }
+        });
+
+        // LocalStorageに保存
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(activeFields));
+
+        const msg = document.getElementById('saveMsg');
+        msg.style.display = 'block';
+        setTimeout(() => { msg.style.display = 'none'; }, 2000);
+    });
+</script>
+
+</body>
+</html>
