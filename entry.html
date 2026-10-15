@@ -23,6 +23,40 @@
         #qrcode { display: inline-block; margin: 15px 0; padding: 10px; background: white; border: 1px solid #ddd; cursor: pointer; }
         .download-hint { font-size: 12px; color: #666; margin-top: 4px; }
         .field-note { font-size: 12px; color: #666; font-weight: normal; margin-top: 2px; }
+        
+        /* 追加：個人情報取り扱い注記スタイル */
+        .privacy-box {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            color: #555;
+            line-height: 1.6;
+        }
+        .privacy-box h4 {
+            margin: 0 0 6px 0;
+            font-size: 14px;
+            color: #2c3e50;
+        }
+        .checkbox-group {
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+        }
+        .checkbox-group input {
+            width: auto;
+            margin-right: 8px;
+            cursor: pointer;
+        }
+        .checkbox-group label {
+            display: inline;
+            margin-bottom: 0;
+            font-weight: normal;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -48,6 +82,19 @@
                     <option value="">選択してください</option>
                 </select>
             </div>
+
+            <!-- 追加：個人情報の取り扱いについての説明 -->
+            <div class="privacy-box">
+                <h4>個人情報の取り扱いについて</h4>
+                <p style="margin: 0;">ご登録いただいた個人情報は、本イベントの運営および関連業務に必要な範囲で利用し、利用目的を達成した後は、法令等に従い適切に削除いたします。</p>
+            </div>
+
+            <!-- 追加：同意確認チェックボックス -->
+            <div class="checkbox-group">
+                <input type="checkbox" id="privacyAgree" required>
+                <label for="privacyAgree">個人情報の取り扱いに同意する</label>
+            </div>
+
             <button type="submit" id="submitBtn">登録</button>
         </form>
         <div class="link-area">
