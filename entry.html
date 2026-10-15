@@ -69,7 +69,7 @@
             <div class="form-group" id="group-company"><label>御社名</label><input type="text" id="company"></div>
             <div class="form-group" id="group-department"><label>部署</label><input type="text" id="department"></div>
             <div class="form-group" id="group-position"><label>役職</label><input type="text" id="position"></div>
-            <div class="form-group" id="group-name"><label>お氏名</label><input type="text" id="name"></div>
+            <div class="form-group" id="group-name"><label>氏名</label><input type="text" id="name"></div>
             <div class="form-group" id="group-email">
                 <label>メールアドレス<br><span class="field-note">※メールアドレスは紛失の際の再発行に利用します</span></label>
                 <input type="email" id="email">
@@ -140,10 +140,10 @@
     // 9:00から17:00まで30分刻みの選択肢を生成する関数
     function generateTimeOptions() {
         const selectElem = document.getElementById('visitTime');
-        for (let hour = 9; hour <= 17; hour++) {
+        for (let hour = 9; hour <= 19; hour++) {
             for (let min = 0; min < 60; min += 30) {
                 // 17時以降の30分（17:30など）は除外する場合のガード
-                if (hour === 17 && min > 0) break;
+                if (hour === 19 && min > 0) break;
                 
                 const timeString = `${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
                 const option = document.createElement('option');
@@ -170,7 +170,7 @@
 
             if (activeFields.includes(field)) {
                 groupElem.style.display = 'block';
-                // 「社名」「メールアドレス」「お氏名」を表示時は必ず必須にする
+                // 「社名」「メールアドレス」「氏名」を表示時は必ず必須にする
                 if (field === 'company' || field === 'email' || field === 'name') {
                     inputElem.required = true;
                 }
