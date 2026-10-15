@@ -166,6 +166,7 @@
                     document.getElementById('qrCode').value = decodedText;
                     stopCamera();
                     alert('QRコードを読み込みました！');
+                    nextStep(1); // ← 読み込み成功時に自動で次のステップへ進む
                 },
                 (errorMessage) => {}
             ).catch(err => {
