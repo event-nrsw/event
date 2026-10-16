@@ -24,7 +24,7 @@
         .download-hint { font-size: 12px; color: #666; margin-top: 4px; }
         .field-note { font-size: 12px; color: #666; font-weight: normal; margin-top: 2px; }
         
-        /* 追加：個人情報取り扱い注記スタイル */
+        /* 個人情報取り扱い注記スタイル */
         .privacy-box {
             background-color: #f8f9fa;
             border: 1px solid #e9ecef;
@@ -83,13 +83,13 @@
                 </select>
             </div>
 
-            <!-- 追加：個人情報の取り扱いについての説明 -->
+            <!-- 個人情報の取り扱いについての説明 -->
             <div class="privacy-box">
                 <h4>個人情報の取り扱いについて</h4>
                 <p style="margin: 0;">ご登録いただいた個人情報は、本イベントの運営および関連業務に必要な範囲で利用し、利用目的を達成した後は、法令等に従い適切に削除いたします。</p>
             </div>
 
-            <!-- 追加：同意確認チェックボックス -->
+            <!-- 同意確認チェックボックス -->
             <div class="checkbox-group">
                 <input type="checkbox" id="privacyAgree" required>
                 <label for="privacyAgree">個人情報の取り扱いに同意する</label>
@@ -127,6 +127,12 @@
         <div id="qrcode" title="クリックしてダウンロード"></div>
         <div class="download-hint">※QRコードをクリックして保存</div>
 
+        <!-- 👇 追加した保存ボタン -->
+        <div style="margin-top: 12px;">
+            <button type="button" id="downloadBtn" style="background-color: #27ae60; padding: 10px; font-size: 14px;">QRコード画像を保存する</button>
+            <div class="download-hint" style="margin-top: 6px;">※iPhone等で自動保存されない場合はQRコードを長押しして保存してください</div>
+        </div>
+
         <div class="info-list" id="infoList" style="text-align: left; margin-top: 15px; font-size: 14px; line-height: 1.6;"></div>
         
         <button type="button" onclick="location.reload()" style="margin-top: 20px; background-color: #7f8c8d;">最初に戻る</button>
@@ -137,12 +143,11 @@
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxJLpAaqKCAwPXfTNYtP-XPcIv63E3NBcmxI6DDITgs9ZAbnTC7Wo29rJWT3H8Gb8Jn/exec";
     const STORAGE_KEY = 'entry_form_settings';
 
-    // 9:00から17:00まで30分刻みの選択肢を生成する関数
+    // 9:00から19:00まで30分刻みの選択肢を生成する関数
     function generateTimeOptions() {
         const selectElem = document.getElementById('visitTime');
         for (let hour = 9; hour <= 19; hour++) {
             for (let min = 0; min < 60; min += 30) {
-                // 17時以降の30分（17:30など）は除外する場合のガード
                 if (hour === 19 && min > 0) break;
                 
                 const timeString = `${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
@@ -160,7 +165,6 @@
 
         const savedSettings = localStorage.getItem(STORAGE_KEY);
         const allFields = ['company', 'department', 'position', 'name', 'email', 'phone', 'visitTime'];
-        // 設定未保存時はすべて表示
         const activeFields = savedSettings ? JSON.parse(savedSettings) : allFields;
 
         allFields.forEach(field => {
@@ -170,14 +174,13 @@
 
             if (activeFields.includes(field)) {
                 groupElem.style.display = 'block';
-                // 「社名」「メールアドレス」「氏名」を表示時は必ず必須にする
                 if (field === 'company' || field === 'email' || field === 'name') {
                     inputElem.required = true;
                 }
             } else {
                 groupElem.style.display = 'none';
-                inputElem.required = false; // 非表示項目のバリデーションエラーを防ぐ
-                inputElem.value = "";       // 値をクリア
+                inputElem.required = false;
+                inputElem.value = "";
             }
         });
     });
@@ -293,8 +296,8 @@
         });
     }
 
-    // QRコードダウンロード
-    qrContainer.addEventListener('click', function() {
+    // 共通のダウンロード処理関数
+    function downloadQRCode() {
         const img = qrContainer.querySelector('img');
         const canvas = qrContainer.querySelector('canvas');
         let imageUrl = img ? img.src : (canvas ? canvas.toDataURL("image/png") : "");
@@ -307,7 +310,13 @@
             link.click();
             document.body.removeChild(link);
         }
-    });
+    }
+
+    // QRコード画像クリック時のダウンロード
+    qrContainer.addEventListener('click', downloadQRCode);
+
+    // 新規追加した「QRコード画像を保存する」ボタンのイベントリスナー
+    document.getElementById('downloadBtn').addEventListener('click', downloadQRCode);
 </script>
 
 </body>
