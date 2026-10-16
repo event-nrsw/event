@@ -38,6 +38,10 @@
         .preview-box { background: #f1f3f5; padding: 15px; border-radius: 6px; margin-bottom: 15px; }
         .preview-box p { margin: 8px 0; font-size: 15px; }
 
+        /* 注意書き用ボックス */
+        .notice-box { background: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 15px; border-radius: 6px; margin-bottom: 15px; }
+        .notice-box p { margin: 6px 0; font-size: 14px; line-height: 1.5; }
+
         /* カメラリーダー表示エリア */
         #reader { width: 100%; max-width: 400px; margin: 10px auto; display: none; }
         #reader video { width: 100% !important; border-radius: 6px; }
@@ -61,8 +65,17 @@
             <!-- ステップ 1: QRコード & カメラ読み取り -->
             <div class="step active" id="step-1">
                 <h2>ステップ 1 / 3</h2>
-                <label for="qrCode">QRコード情報</label>
-                <input type="text" id="qrCode" name="qrCode" placeholder="カメラで読み取るか、手動で入力" required>
+                
+                <!-- 注意書きエリア -->
+                <div class="notice-box">
+                    <p><strong>📋 イベントアンケートご協力のお願い</strong></p>
+                    <p>本日はイベントにご参加いただきありがとうございます。以下の手順に沿ってアンケートのご回答をお願いいたします。</p>
+                    <p>まずはじめに、お持ちの<strong>名札に記載されているQRコード</strong>をカメラで読み取ってください。</p>
+                    <p>※カメラでQRコードが読み取れないスマホの場合は、入力欄に<strong>お名前（フルネーム）</strong>を直接ご入力ください。</p>
+                </div>
+
+                <label for="qrCode">QRコード情報 / お名前</label>
+                <input type="text" id="qrCode" name="qrCode" placeholder="カメラで読み取るか、お名前を入力してください" required>
                 
                 <div style="margin-top: 15px; text-align: center;">
                     <button type="button" id="start-camera-btn" class="success-btn">カメラでQRを読み込む</button>
@@ -79,8 +92,9 @@
             <div class="step" id="step-2">
                 <h2>ステップ 2 / 3</h2>
                 
-                <label for="product">気になった商品は何ですか？</label>
-                <input type="text" id="product" name="product" placeholder="商品名を入力してください" required>
+                <label for="product">気になった商品があればご記入下さい（任意）</label>
+                <!-- requiredを削除しました -->
+                <input type="text" id="product" name="product" placeholder="商品名を入力してください（なければ空欄でも可）">
 
                 <label style="margin-top: 20px;">本日のご興味・ご要望をお聞かせください</label>
                 <div class="radio-group">
@@ -115,8 +129,8 @@
             <!-- ステップ 3: 感想 -->
             <div class="step" id="step-3">
                 <h2>ステップ 3 / 3</h2>
-                <label for="comment">ご自由にご感想を入力ください</label>
-                <textarea id="comment" name="comment" placeholder="イベントに関するご感想やご意見、担当営業への伝言などを自由にお書きください（任意）"></textarea>
+                <label for="comment">ご意見・ご感想（任意）</label>
+                <textarea id="comment" name="comment" placeholder="本日のイベントのご感想や、次回以降のイベント開催に向けたご意見・ご要望がございましたら自由にご入力ください。担当営業への伝言などもこちらへどうぞ。"></textarea>
                 <div class="btn-container">
                     <button type="button" class="secondary-btn" onclick="prevStep(3)">戻る</button>
                     <button type="button" onclick="showPreview()">確認画面へ進む</button>
@@ -129,10 +143,10 @@
         <div class="step" id="step-preview">
             <h2>入力内容の確認</h2>
             <div class="preview-box">
-                <p><strong>QRコード情報:</strong><br><span id="prev-qrCode"></span></p>
+                <p><strong>QRコード情報 / お名前:</strong><br><span id="prev-qrCode"></span></p>
                 <p><strong>気になる商品:</strong><br><span id="prev-product"></span></p>
                 <p><strong>ご興味・ご要望:</strong><br><span id="prev-rating"></span></p>
-                <p><strong>ご感想:</strong><br><span id="prev-comment"></span></p>
+                <p><strong>ご意見・ご感想:</strong><br><span id="prev-comment"></span></p>
             </div>
             <div class="btn-container">
                 <button type="button" class="secondary-btn" onclick="editForm()">修正する</button>
@@ -159,14 +173,29 @@
             html5QrCode.start(
                 { facingMode: "environment" }, 
                 {
-                    fps: 10,    
+                    fps: 10,   
                     qrbox: { width: 250, height: 250 } 
                 },
                 (decodedText, decodedResult) => {
+                    // 入力欄に値をセット
                     document.getElementById('qrCode').value = decodedText;
-                    stopCamera();
-                    alert('QRコードを読み込みました！');
-                    nextStep(1); // ← 読み込み成功時に自動で次のステップへ進む
+
+                    // カメラを安全に停止してから自動で次のステップへ進む
+                    if (html5QrCode) {
+                        html5QrCode.stop().then(() => {
+                            html5QrCode.clear();
+                            document.getElementById('reader').style.display = 'none';
+                            document.getElementById('start-camera-btn').style.display = 'inline-block';
+                            document.getElementById('stop-camera-btn').style.display = 'none';
+
+                            goToStep2Directly();
+                        }).catch(err => {
+                            console.error("カメラ停止失敗:", err);
+                            goToStep2Directly();
+                        });
+                    } else {
+                        goToStep2Directly();
+                    }
                 },
                 (errorMessage) => {}
             ).catch(err => {
@@ -189,6 +218,21 @@
                     console.error("カメラ停止失敗:", err);
                 });
             }
+        }
+
+        // スキャン成功時に直接ステップ2へ進む関数
+        function goToStep2Directly() {
+            const currentStepEl = document.getElementById('step-1');
+            const input = document.getElementById('qrCode');
+            
+            if (!input.checkValidity()) {
+                input.reportValidity();
+                return;
+            }
+
+            currentStepEl.classList.remove('active');
+            document.getElementById('step-2').classList.add('active');
+            window.scrollTo(0, 0);
         }
 
         // 次へ進む時の制御
@@ -232,7 +276,8 @@
             }
 
             document.getElementById('prev-qrCode').textContent = document.getElementById('qrCode').value;
-            document.getElementById('prev-product').textContent = document.getElementById('product').value;
+            // 未入力（空欄）の場合は「（なし）」を表示するよう調整
+            document.getElementById('prev-product').textContent = document.getElementById('product').value || "（なし）";
             document.getElementById('prev-rating').textContent = document.querySelector('input[name="rating"]:checked').value;
             document.getElementById('prev-comment').textContent = document.getElementById('comment').value || "（なし）";
 
