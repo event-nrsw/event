@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>入場管理・最新タイムスタンプ結合</title>
+    <!-- Tailwind CSS (スタイリング用) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* スマホ用：テーブルをカード風リストに変換するレスポンシブ設定 */
+        @media (max-width: 768px) {
+            .responsive-table, .responsive-table tbody, .responsive-table tr, .responsive-table td {
+                display: block;
+                width: 100%;
+            }
+            .responsive-table thead {
+                display: none;
+            }
+            .responsive-table tr {
+                margin-bottom: 1rem;
+                background-color: #ffffff;
+                border: 1px solid #e5e7eb;
+                border-radius: 0.5rem;
+                box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+                padding: 0.75rem;
+            }
+            .responsive-table td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0.5rem 0.25rem;
+                border-bottom: 1px solid #f3f4f6;
+                text-align: right;
+            }
+            .responsive-table td:last-child {
+                border-bottom: none;
+            }
+            .responsive-table td::before {
+                content: attr(data-label);
+                font-weight: 600;
+                color: #4b5563;
+                text-align: left;
+                margin-right: 1rem;
+                flex-shrink: 0;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen py-4 sm:py-8 px-2 sm:px-4">
+    <div class="max-w-7xl mx-auto">
+        <header class="mb-6 sm:mb-8 text-center px-2">
+            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">入場管理データ</h1>
+            <p class="text-xs sm:text-base text-gray-600">エントリーリストと入場時間の照合表示</p>
+        </header>
+
+        <!-- コントロール・ステータス・検索・絞り込みエリア -->
+        <div class="bg-white shadow rounded-lg p-4 sm:p-6 mb-6 space-y-4">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div id="status" class="text-sm sm:text-lg font-medium text-blue-600 text-center sm:text-left">
+                    データを読み込み中...
+                </div>
+                <button onclick="loadData()" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-md shadow transition duration-200 active:scale-95 text-sm">
+                    データを再読み込み
+                </button>
+            </div>
+
+            <!-- キーワード検索ボックス -->
+            <div class="pt-2">
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                    </div>
+                    <input type="text" id="search-keyword" oninput="renderTable()" placeholder="キーワード検索（社名、氏名、電話番号など）..." class="w-full bg-gray-50 border border-gray-300 text-gray-800 text-xs sm:text-sm rounded-md pl-10 pr-4 py-2.5 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+            </div>
+
+            <!-- 絞り込み & ソートコントロール -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-gray-200">
+                <!-- タイムスタンプ絞り込み -->
+                <div class="flex items-center gap-2">
+                    <label for="filter-status" class="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">絞り込み:</label>
+                    <select id="filter-status" onchange="renderTable()" class="w-full bg-gray-50 border border-gray-300 text-gray-800 text-xs sm:text-sm rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="all">すべて表示</option>
+                        <option value="has-time">「来場済」のみ</option>
+                        <option value="no-time">「未来場」のみ</option>
+                    </select>
+                </div>
+
+                <!-- 社名並び替え -->
+                <div class="flex items-center gap-2">
+                    <label for="sort-company" class="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">社名順:</label>
+                    <select id="sort-company" onchange="renderTable()" class="w-full bg-gray-50 border border-gray-300 text-gray-800 text-xs sm:text-sm rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="none">元の順序</option>
+                        <option value="asc">社名 昇順</option>
+                        <option value="desc">社名 降順</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- 結果表示エリア -->
+        <div class="bg-transparent sm:bg-white sm:shadow sm:rounded-lg sm:overflow-hidden sm:border sm:border-gray-200">
+            <div class="sm:overflow-x-auto">
+                <table id="result-table" class="responsive-table min-w-full divide-y divide-gray-200">
+                    <thead id="table-head" class="bg-gray-100 hidden sm:table-header-group">
+                        <!-- 動的に列ヘッダーが生成されます -->
+                    </thead>
+                    <tbody id="table-body" class="divide-y divide-gray-200 bg-transparent sm:bg-white text-xs sm:text-sm space-y-3 sm:space-y-0">
+                        <!-- 動的にデータ行が生成されます -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // CSVの公開URL設定
+        const CSV_A_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRMBhJHb7uwcE_rDrArB-RfhtC4vAjTZf5qis8HTgGd8vNXYgfK2eMyrS95CQyiUVaKmd0jo6tGaGfg/pub?gid=0&single=true&output=csv';
+        const CSV_B_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSo7I2OPZCZ70_C3J_KVdZWLHQl-BGKVOD5kYE61wzLZJt4DOUk2j2zew3ryApv0dsyFHhkW2HzwLzc/pub?gid=0&single=true&output=csv';
+
+        const KEY_INDEX_A = 7; // CSV A の KEY列 = H列
+        const TIME_INDEX_B = 0; // CSV B の 入場時間列 = A列
+        const KEY_INDEX_B = 1; // CSV B の KEY列 = B列
+        const TARGET_COLUMNS_A = [1, 2, 3, 4]; // B, C, D, E列
+
+        let cachedHeaderA = [];
+        let cachedCombinedData = [];
+
+        // 簡易CSVパーサー
+        function parseCSV(text) {
+            let lines = text.split(/\r\n|\n/);
+            let result = [];
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i].trim();
+                if (!line) continue;
+                
+                let row = [];
+                let inQuotes = false;
+                let currentVal = '';
+                
+                for (let j = 0; j < line.length; j++) {
+                    let char = line[j];
+                    if (char === '"') {
+                        if (inQuotes && line[j + 1] === '"') {
+                            currentVal += '"';
+                            j++;
+                        } else {
+                            inQuotes = !inQuotes;
+                        }
+                    } else if (char === ',' && !inQuotes) {
+                        row.push(currentVal);
+                        currentVal = '';
+                    } else {
+                        currentVal += char;
+                    }
+                }
+                row.push(currentVal);
+                result.push(row);
+            }
+            return result;
+        }
+
+        async function loadData() {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = 'CSVデータを取得中...';
+            statusEl.className = 'text-sm sm:text-lg font-medium text-blue-600 text-center sm:text-left';
+
+            try {
+                const [resA, resB] = await Promise.all([
+                    fetch(CSV_A_URL),
+                    fetch(CSV_B_URL)
+                ]);
+
+                if (!resA.ok || !resB.ok) {
+                    throw new Error('CSVの取得に失敗しました。');
+                }
+
+                const textA = await resA.text();
+                const textB = await resB.text();
+
+                const dataA = parseCSV(textA);
+                const dataB = parseCSV(textB);
+
+                if (dataA.length === 0) {
+                    statusEl.textContent = 'CSV Aにデータが存在しません。';
+                    statusEl.className = 'text-sm sm:text-lg font-medium text-red-600 text-center sm:text-left';
+                    return;
+                }
+
+                cachedHeaderA = dataA[0];
+                const rowsA = dataA.slice(1);
+                const rowsB = dataB.length > 1 ? dataB.slice(1) : dataB;
+
+                const latestTimeMap = new Map();
+                rowsB.forEach(rowB => {
+                    if (rowB.length > KEY_INDEX_B) {
+                        const key = rowB[KEY_INDEX_B].trim();
+                        const timeStr = (rowB.length > TIME_INDEX_B) ? rowB[TIME_INDEX_B].trim() : '';
+                        if (key && timeStr) {
+                            if (!latestTimeMap.has(key) || timeStr > latestTimeMap.get(key)) {
+                                latestTimeMap.set(key, timeStr);
+                            }
+                        }
+                    }
+                });
+
+                cachedCombinedData = rowsA.map(rowA => {
+                    const keyA = (rowA.length > KEY_INDEX_A) ? rowA[KEY_INDEX_A].trim() : '';
+                    const latestTime = keyA && latestTimeMap.has(keyA) ? latestTimeMap.get(keyA) : '';
+                    const companyName = (rowA.length > 1 && rowA[1] !== undefined) ? rowA[1] : '';
+
+                    return {
+                        rowA: rowA,
+                        latestTime: latestTime,
+                        companyName: companyName
+                    };
+                });
+
+                buildHeader();
+                renderTable();
+
+            } catch (error) {
+                console.error(error);
+                statusEl.textContent = `エラーが発生しました: ${error.message}`;
+                statusEl.className = 'text-sm sm:text-lg font-medium text-red-600 text-center sm:text-left';
+            }
+        }
+
+        function buildHeader() {
+            const tableHead = document.getElementById('table-head');
+            let headerHtml = '<tr>';
+            TARGET_COLUMNS_A.forEach(colIdx => {
+                let thName = (cachedHeaderA.length > colIdx) ? cachedHeaderA[colIdx] : `列 ${colIdx + 1}`;
+                headerHtml += `<th class="px-3 sm:px-6 py-2.5 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-blue-50 whitespace-nowrap">${thName}</th>`;
+            });
+            headerHtml += `<th class="px-3 sm:px-6 py-2.5 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50 whitespace-nowrap">来場時間</th>`;
+            headerHtml += '</tr>';
+            tableHead.innerHTML = headerHtml;
+        }
+
+        function renderTable() {
+            const statusEl = document.getElementById('status');
+            const tableBody = document.getElementById('table-body');
+            const filterValue = document.getElementById('filter-status').value;
+            const sortValue = document.getElementById('sort-company').value;
+            const searchKeyword = document.getElementById('search-keyword').value.trim().toLowerCase();
+
+            const totalCount = cachedCombinedData.length;
+            const checkedInCount = cachedCombinedData.filter(item => item.latestTime !== '').length;
+
+            // 1. キーワード検索 ＆ タイムスタンプ絞り込み
+            let filteredData = cachedCombinedData.filter(item => {
+                // タイムスタンプ絞り込みチェック
+                const hasTime = item.latestTime !== '';
+                if (filterValue === 'has-time' && !hasTime) return false;
+                if (filterValue === 'no-time' && hasTime) return false;
+
+                // キーワード検索チェック (B, C, D, E列 または 入場時間にキーワードが含まれるか)
+                if (searchKeyword !== '') {
+                    let matched = false;
+                    // B, C, D, E列をチェック
+                    TARGET_COLUMNS_A.forEach(colIdx => {
+                        let val = (item.rowA.length > colIdx && item.rowA[colIdx] !== undefined) ? String(item.rowA[colIdx]).toLowerCase() : '';
+                        if (val.includes(searchKeyword)) matched = true;
+                    });
+                    // 入場時間もチェック
+                    if (item.latestTime.toLowerCase().includes(searchKeyword)) matched = true;
+
+                    if (!matched) return false;
+                }
+
+                return true;
+            });
+
+            // 2. 並び替え (Sort)
+            if (sortValue !== 'none') {
+                filteredData.sort((a, b) => {
+                    const compA = a.companyName;
+                    const compB = b.companyName;
+                    if (sortValue === 'asc') {
+                        return compA.localeCompare(compB, 'ja');
+                    } else {
+                        return compB.localeCompare(compA, 'ja');
+                    }
+                });
+            }
+
+            // 3. 描画
+            let bodyHtml = '';
+            filteredData.forEach(item => {
+                bodyHtml += '<tr class="hover:bg-gray-50 block sm:table-row">';
+                
+                TARGET_COLUMNS_A.forEach(colIdx => {
+                    let thName = (cachedHeaderA.length > colIdx) ? cachedHeaderA[colIdx] : `列 ${colIdx + 1}`;
+                    let cellValue = (item.rowA.length > colIdx && item.rowA[colIdx] !== undefined) ? item.rowA[colIdx] : '';
+                    cellValue = cellValue.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                    
+                    bodyHtml += `<td data-label="${thName}" class="px-3 sm:px-6 py-2 sm:py-4 text-gray-700 sm:border-b sm:border-gray-200">${cellValue}</td>`;
+                });
+
+                let timeVal = item.latestTime.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                bodyHtml += `<td data-label="入場時間" class="px-3 sm:px-6 py-2 sm:py-4 font-semibold text-green-700 bg-green-50/30 sm:bg-green-50/50 sm:border-b sm:border-gray-200">${timeVal}</td>`;
+                
+                bodyHtml += '</tr>';
+            });
+
+            tableBody.innerHTML = bodyHtml;
+            statusEl.innerHTML = `総件数: <span class="font-bold text-gray-900">${totalCount}件</span> ／ 来場済: <span class="font-bold text-green-600">${checkedInCount}件</span> <span class="text-xs text-gray-500 font-normal sm:ml-2">(表示中: ${filteredData.length}件)</span>`;
+            statusEl.className = 'text-sm sm:text-base font-medium text-blue-600 text-center sm:text-left';
+        }
+
+        // ページ読み込み時に実行
+        window.addEventListener('DOMContentLoaded', loadData);
+    </script>
+</body>
+</html>
