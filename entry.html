@@ -143,10 +143,10 @@
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxJLpAaqKCAwPXfTNYtP-XPcIv63E3NBcmxI6DDITgs9ZAbnTC7Wo29rJWT3H8Gb8Jn/exec";
     const STORAGE_KEY = 'entry_form_settings';
 
-    // 9:00から19:00まで30分刻みの選択肢を生成する関数
+    // 10:00から19:00まで30分刻みの選択肢を生成する関数
     function generateTimeOptions() {
         const selectElem = document.getElementById('visitTime');
-        for (let hour = 9; hour <= 19; hour++) {
+        for (let hour = 10; hour <= 19; hour++) {
             for (let min = 0; min < 60; min += 30) {
                 if (hour === 19 && min > 0) break;
                 
