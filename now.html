@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>エントリー来場リスト</title>
+    <title>入場管理・最新タイムスタンプ結合</title>
     <!-- Tailwind CSS (スタイリング用) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* スマホ用：テーブルをカード風リストに変換するレスポンシブ設定 */
+        /* スマホ用：カード風リスト ＆ アコーディオンのスタイル調整 */
         @media (max-width: 768px) {
             .responsive-table, .responsive-table tbody, .responsive-table tr, .responsive-table td {
                 display: block;
@@ -17,12 +17,32 @@
                 display: none;
             }
             .responsive-table tr {
-                margin-bottom: 1rem;
+                margin-bottom: 0.75rem;
                 background-color: #ffffff;
                 border: 1px solid #e5e7eb;
                 border-radius: 0.5rem;
                 box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-                padding: 0.75rem;
+                overflow: hidden;
+            }
+            /* スマホ時の常時表示ヘッダー（社名と来場予定時刻） */
+            .mobile-header-row {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0.75rem 1rem;
+                background-color: #f9fafb;
+                cursor: pointer;
+                user-select: none;
+            }
+            /* 折りたたみ詳細コンテンツ */
+            .mobile-details {
+                display: none;
+                padding: 0.75rem 1rem;
+                border-top: 1px solid #f3f4f6;
+                background-color: #ffffff;
+            }
+            .mobile-details.open {
+                display: block;
             }
             .responsive-table td {
                 display: flex;
@@ -124,7 +144,7 @@
         const TIME_INDEX_B = 0; // CSV B の 入場時間列 = A列
         const KEY_INDEX_B = 1; // CSV B の KEY列 = B列
         
-        // 表示する列のインデックス (B=1, C=2, D=3, E=4, I=8) ※I列を追加
+        // 表示する列のインデックス (B=1, C=2, D=3, E=4, I=8)
         const TARGET_COLUMNS_A = [1, 2, 3, 4, 8]; 
 
         let cachedHeaderA = [];
@@ -242,6 +262,18 @@
             tableHead.innerHTML = headerHtml;
         }
 
+        // スマホ用のアコーディオン開閉切り替え関数
+        function toggleAccordion(element) {
+            const details = element.nextElementSibling;
+            const icon = element.querySelector('.accordion-icon');
+            if (details) {
+                details.classList.toggle('open');
+                if (icon) {
+                    icon.style.transform = details.classList.contains('open') ? 'rotate(180deg)' : 'rotate(0deg)';
+                }
+            }
+        }
+
         function renderTable() {
             const statusEl = document.getElementById('status');
             const tableBody = document.getElementById('table-body');
@@ -254,12 +286,10 @@
 
             // 1. キーワード検索 ＆ タイムスタンプ絞り込み
             let filteredData = cachedCombinedData.filter(item => {
-                // タイムスタンプ絞り込みチェック
                 const hasTime = item.latestTime !== '';
                 if (filterValue === 'has-time' && !hasTime) return false;
                 if (filterValue === 'no-time' && hasTime) return false;
 
-                // キーワード検索チェック
                 if (searchKeyword !== '') {
                     let matched = false;
                     TARGET_COLUMNS_A.forEach(colIdx => {
@@ -290,19 +320,57 @@
             // 3. 描画
             let bodyHtml = '';
             filteredData.forEach(item => {
-                bodyHtml += '<tr class="hover:bg-gray-50 block sm:table-row">';
-                
+                // PC表示用のデータセルを生成
+                let pcCellsHtml = '';
                 TARGET_COLUMNS_A.forEach(colIdx => {
                     let thName = (cachedHeaderA.length > colIdx) ? cachedHeaderA[colIdx] : `列 ${colIdx + 1}`;
                     let cellValue = (item.rowA.length > colIdx && item.rowA[colIdx] !== undefined) ? item.rowA[colIdx] : '';
                     cellValue = cellValue.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
                     
-                    bodyHtml += `<td data-label="${thName}" class="px-3 sm:px-6 py-2 sm:py-4 text-gray-700 sm:border-b sm:border-gray-200">${cellValue}</td>`;
+                    pcCellsHtml += `<td data-label="${thName}" class="px-3 sm:px-6 py-2 sm:py-4 text-gray-700 sm:border-b sm:border-gray-200 hidden sm:table-cell">${cellValue}</td>`;
                 });
 
                 let timeVal = item.latestTime.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-                bodyHtml += `<td data-label="来場時間" class="px-3 sm:px-6 py-2 sm:py-4 font-semibold text-green-700 bg-green-50/30 sm:bg-green-50/50 sm:border-b sm:border-gray-200">${timeVal}</td>`;
+                let pcTimeCell = `<td data-label="来場時間" class="px-3 sm:px-6 py-2 sm:py-4 font-semibold text-green-700 bg-green-50/30 sm:bg-green-50/50 sm:border-b sm:border-gray-200 hidden sm:table-cell">${timeVal}</td>`;
+
+                // スマホ用データの抽出 (社名: index 1, 来場予定時刻: index 8, その他: index 2, 3, 4 と 来場時間)
+                let companyVal = (item.rowA.length > 1 && item.rowA[1] !== undefined) ? item.rowA[1] : '';
+                let expectedTimeVal = (item.rowA.length > 8 && item.rowA[8] !== undefined) ? item.rowA[8] : '';
+                companyVal = companyVal.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                expectedTimeVal = expectedTimeVal.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+                // スマホ用アコーディオンHTML構築
+                bodyHtml += `<tr class="hover:bg-gray-50 block sm:table-row">`;
                 
+                // --- スマホ専用表示 (デフォルトで1行表示、タップで展開) ---
+                bodyHtml += `<td colspan="${TARGET_COLUMNS_A.length + 1}" class="p-0 sm:hidden block border-b border-gray-200">`;
+                // ヘルパー行（社名 ＆ 来場予定時刻 ＆ 展開アイコン）
+                bodyHtml += `  <div class="mobile-header-row" onclick="toggleAccordion(this)">`;
+                bodyHtml += `    <div class="font-bold text-gray-900 text-sm truncate pr-2">${companyName ? companyName : '(社名なし)'}</div>`;
+                bodyHtml += `    <div class="flex items-center gap-2 shrink-0">`;
+                if (expectedTimeVal) {
+                    bodyHtml += `      <span class="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-200 font-medium">予定: ${expectedTimeVal}</span>`;
+                }
+                bodyHtml += `      <svg class="accordion-icon w-4 h-4 text-gray-500 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>`;
+                bodyHtml += `    </div>`;
+                bodyHtml += `  </div>`;
+                
+                // 折りたたまれる詳細行
+                bodyHtml += `  <div class="mobile-details space-y-2 text-xs">`;
+                TARGET_COLUMNS_A.forEach(colIdx => {
+                    let thName = (cachedHeaderA.length > colIdx) ? cachedHeaderA[colIdx] : `列 ${colIdx + 1}`;
+                    let cellValue = (item.rowA.length > colIdx && item.rowA[colIdx] !== undefined) ? item.rowA[colIdx] : '';
+                    cellValue = cellValue.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                    bodyHtml += `    <div class="flex justify-between py-1 border-b border-gray-100"><span class="font-semibold text-gray-500">${thName}</span><span class="text-gray-800 text-right">${cellValue}</span></div>`;
+                });
+                bodyHtml += `    <div class="flex justify-between py-1"><span class="font-semibold text-green-600">来場時間</span><span class="font-semibold text-green-700 text-right">${timeVal || '未来場'}</span></div>`;
+                bodyHtml += `  </div>`;
+                bodyHtml += `</td>`;
+                // -------------------------------------------------------------
+
+                // --- PC用テーブルセル（そのまま維持） ---
+                bodyHtml += pcCellsHtml + pcTimeCell;
+
                 bodyHtml += '</tr>';
             });
 
