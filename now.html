@@ -305,6 +305,13 @@
             // 3. 描画
             let bodyHtml = '';
             filteredData.forEach(item => {
+                const isCheckedIn = item.latestTime !== '';
+
+                // ステータスバッジのHTML
+                const statusBadgeHtml = isCheckedIn
+                    ? `<span class="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold rounded bg-green-500 text-white shadow-sm">済</span>`
+                    : `<span class="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold rounded bg-yellow-400 text-gray-900 shadow-sm">未</span>`;
+
                 // PC表示用のデータセルを生成 (PCでは通常の表形式)
                 let pcCellsHtml = '';
                 TARGET_COLUMNS_A.forEach(colIdx => {
@@ -316,7 +323,12 @@
                 });
 
                 let timeVal = item.latestTime.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-                let pcTimeCell = `<td data-label="来場時間" class="px-3 sm:px-6 py-2 sm:py-4 font-semibold text-green-700 bg-green-50/30 sm:bg-green-50/50 sm:border-b sm:border-gray-200 hidden sm:table-cell">${timeVal}</td>`;
+                let pcTimeCell = `<td data-label="来場時間" class="px-3 sm:px-6 py-2 sm:py-4 font-semibold text-green-700 bg-green-50/30 sm:bg-green-50/50 sm:border-b sm:border-gray-200 hidden sm:table-cell">
+                    <div class="flex items-center gap-2">
+                        ${statusBadgeHtml}
+                        <span>${timeVal || '-'}</span>
+                    </div>
+                </td>`;
 
                 // スマホ用データの抽出
                 let companyVal = (item.rowA.length > 1 && item.rowA[1] !== undefined) ? item.rowA[1] : '';
@@ -330,18 +342,20 @@
                 // --- スマホ専用表示 (デフォルトで1行表示、タップで展開) ---
                 bodyHtml += `<td colspan="${TARGET_COLUMNS_A.length + 1}" class="p-0 sm:hidden block border-b border-gray-200">`;
                 
-                // ヘルパー行（社名 ＆ 来場予定時刻 ＆ 展開アイコン：初期状態ではこの1行のみ表示）
+                // ヘルパー行（社名 ＆ 来場予定時刻 ＆ ステータスバッジ（未/済） ＆ 展開アイコン）
                 bodyHtml += `  <div class="mobile-header-row" onclick="toggleAccordion(this)">`;
                 bodyHtml += `    <div class="font-bold text-gray-900 text-sm truncate pr-2">${companyVal ? companyVal : '(社名なし)'}</div>`;
                 bodyHtml += `    <div class="flex items-center gap-2 shrink-0">`;
                 if (expectedTimeVal) {
                     bodyHtml += `      <span class="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-200 font-medium">予定: ${expectedTimeVal}</span>`;
                 }
+                // 時刻（予定時刻）の後ろに「済/未」バッジを追加
+                bodyHtml += `      ${statusBadgeHtml}`;
                 bodyHtml += `      <svg class="accordion-icon w-4 h-4 text-gray-500 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>`;
                 bodyHtml += `    </div>`;
                 bodyHtml += `  </div>`;
                 
-                // 折りたたまれる詳細行（初期状態は完全に非表示。タップすると展開し、部署・役職・氏名・実際の来場時間のみを表示）
+                // 折りたたまれる詳細行（初期状態は完全に非表示。タップすると展開）
                 bodyHtml += `  <div class="mobile-details space-y-2 text-xs">`;
                 
                 // 部署(index 2)、役職(index 3)、氏名(index 4)を表示
@@ -353,7 +367,7 @@
                 });
 
                 // 実際の来場時間
-                bodyHtml += `    <div class="flex justify-between py-1"><span class="font-semibold text-green-600">来場時間</span><span class="font-semibold text-green-700 text-right">${timeVal || '未来場'}</span></div>`;
+                bodyHtml += `    <div class="flex justify-between items-center py-1"><span class="font-semibold text-green-600">来場時間</span><span class="font-semibold text-green-700 text-right flex items-center gap-1">${statusBadgeHtml} ${timeVal || '未来場'}</span></div>`;
                 
                 bodyHtml += `  </div>`;
                 bodyHtml += `</td>`;
@@ -367,7 +381,7 @@
 
             tableBody.innerHTML = bodyHtml;
             statusEl.innerHTML = `総件数: <span class="font-bold text-gray-900">${totalCount}件</span> ／ 来場済: <span class="font-bold text-green-600">${checkedInCount}件</span> <span class="text-xs text-gray-500 font-normal sm:ml-2">(表示中: ${filteredData.length}件)</span>`;
-            statusEl.className = 'text-sm sm:text-base font-medium text-blue-600 text-center sm:text-left';
+            statusEl.className = 'text-sm sm:base font-medium text-blue-600 text-center sm:text-left';
         }
 
         // ページ読み込み時に実行
