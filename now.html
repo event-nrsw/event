@@ -333,7 +333,7 @@
                 let timeVal = item.latestTime.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
                 let pcTimeCell = `<td data-label="来場時間" class="px-3 sm:px-6 py-2 sm:py-4 font-semibold text-green-700 bg-green-50/30 sm:bg-green-50/50 sm:border-b sm:border-gray-200 hidden sm:table-cell">${timeVal}</td>`;
 
-                // スマホ用データの抽出 (社名: index 1, 来場予定時刻: index 8, その他: index 2, 3, 4 と 来場時間)
+                // スマホ用データの抽出 (社名: index 1, 来場予定時刻: index 8)
                 let companyVal = (item.rowA.length > 1 && item.rowA[1] !== undefined) ? item.rowA[1] : '';
                 let expectedTimeVal = (item.rowA.length > 8 && item.rowA[8] !== undefined) ? item.rowA[8] : '';
                 companyVal = companyVal.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -346,7 +346,7 @@
                 bodyHtml += `<td colspan="${TARGET_COLUMNS_A.length + 1}" class="p-0 sm:hidden block border-b border-gray-200">`;
                 // ヘルパー行（社名 ＆ 来場予定時刻 ＆ 展開アイコン）
                 bodyHtml += `  <div class="mobile-header-row" onclick="toggleAccordion(this)">`;
-                bodyHtml += `    <div class="font-bold text-gray-900 text-sm truncate pr-2">${companyName ? companyName : '(社名なし)'}</div>`;
+                bodyHtml += `    <div class="font-bold text-gray-900 text-sm truncate pr-2">${companyVal ? companyVal : '(社名なし)'}</div>`;
                 bodyHtml += `    <div class="flex items-center gap-2 shrink-0">`;
                 if (expectedTimeVal) {
                     bodyHtml += `      <span class="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-200 font-medium">予定: ${expectedTimeVal}</span>`;
@@ -368,7 +368,7 @@
                 bodyHtml += `</td>`;
                 // -------------------------------------------------------------
 
-                // --- PC用テーブルセル（そのまま維持） ---
+                // --- PC用テーブルセル ---
                 bodyHtml += pcCellsHtml + pcTimeCell;
 
                 bodyHtml += '</tr>';
