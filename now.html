@@ -34,7 +34,7 @@
                 cursor: pointer;
                 user-select: none;
             }
-            /* 折りたたみ詳細コンテンツ */
+            /* 折りたたみ詳細コンテンツ（初期状態は非表示） */
             .mobile-details {
                 display: none;
                 padding: 0.75rem 1rem;
@@ -337,7 +337,7 @@
                 bodyHtml += `    </div>`;
                 bodyHtml += `  </div>`;
                 
-                // 折りたたまれる詳細行（社名と来場予定時刻を除外して、すっきりと部署・役職・氏名・来場時間を表示）
+                // 折りたたまれる詳細行（すでにヘッダーにある「社名」「来場予定時刻」は除き、部署・役職・氏名・来場時間のみを表示）
                 bodyHtml += `  <div class="mobile-details space-y-2 text-xs">`;
                 
                 // 部署(index 2)、役職(index 3)、氏名(index 4)を表示
@@ -348,12 +348,7 @@
                     bodyHtml += `    <div class="flex justify-between py-1 border-b border-gray-100"><span class="font-semibold text-gray-500">${thName}</span><span class="text-gray-800 text-right">${cellValue}</span></div>`;
                 });
 
-                // 来場予定時刻（再確認用）
-                if (expectedTimeVal) {
-                    bodyHtml += `    <div class="flex justify-between py-1 border-b border-gray-100"><span class="font-semibold text-gray-500">来場予定時刻</span><span class="text-gray-800 text-right">${expectedTimeVal}</span></div>`;
-                }
-
-                // 実際の来場時間
+                // 実際の来場時間（来場予定時刻はヘッダーにあるため除外、来場時間のみ表示）
                 bodyHtml += `    <div class="flex justify-between py-1"><span class="font-semibold text-green-600">来場時間</span><span class="font-semibold text-green-700 text-right">${timeVal || '未来場'}</span></div>`;
                 
                 bodyHtml += `  </div>`;
