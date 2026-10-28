@@ -44,25 +44,6 @@
             .mobile-details.open {
                 display: block;
             }
-            .responsive-table td {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 0.5rem 0.25rem;
-                border-bottom: 1px solid #f3f4f6;
-                text-align: right;
-            }
-            .responsive-table td:last-child {
-                border-bottom: none;
-            }
-            .responsive-table td::before {
-                content: attr(data-label);
-                font-weight: 600;
-                color: #4b5563;
-                text-align: left;
-                margin-right: 1rem;
-                flex-shrink: 0;
-            }
         }
     </style>
 </head>
@@ -333,7 +314,7 @@
                 let timeVal = item.latestTime.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
                 let pcTimeCell = `<td data-label="来場時間" class="px-3 sm:px-6 py-2 sm:py-4 font-semibold text-green-700 bg-green-50/30 sm:bg-green-50/50 sm:border-b sm:border-gray-200 hidden sm:table-cell">${timeVal}</td>`;
 
-                // スマホ用データの抽出 (社名: index 1, 来場予定時刻: index 8)
+                // スマホ用データの抽出
                 let companyVal = (item.rowA.length > 1 && item.rowA[1] !== undefined) ? item.rowA[1] : '';
                 let expectedTimeVal = (item.rowA.length > 8 && item.rowA[8] !== undefined) ? item.rowA[8] : '';
                 companyVal = companyVal.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -344,6 +325,7 @@
                 
                 // --- スマホ専用表示 (デフォルトで1行表示、タップで展開) ---
                 bodyHtml += `<td colspan="${TARGET_COLUMNS_A.length + 1}" class="p-0 sm:hidden block border-b border-gray-200">`;
+                
                 // ヘルパー行（社名 ＆ 来場予定時刻 ＆ 展開アイコン）
                 bodyHtml += `  <div class="mobile-header-row" onclick="toggleAccordion(this)">`;
                 bodyHtml += `    <div class="font-bold text-gray-900 text-sm truncate pr-2">${companyVal ? companyVal : '(社名なし)'}</div>`;
@@ -355,15 +337,25 @@
                 bodyHtml += `    </div>`;
                 bodyHtml += `  </div>`;
                 
-                // 折りたたまれる詳細行
+                // 折りたたまれる詳細行（社名と来場予定時刻を除外して、すっきりと部署・役職・氏名・来場時間を表示）
                 bodyHtml += `  <div class="mobile-details space-y-2 text-xs">`;
-                TARGET_COLUMNS_A.forEach(colIdx => {
+                
+                // 部署(index 2)、役職(index 3)、氏名(index 4)を表示
+                [2, 3, 4].forEach(colIdx => {
                     let thName = (cachedHeaderA.length > colIdx) ? cachedHeaderA[colIdx] : `列 ${colIdx + 1}`;
                     let cellValue = (item.rowA.length > colIdx && item.rowA[colIdx] !== undefined) ? item.rowA[colIdx] : '';
                     cellValue = cellValue.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
                     bodyHtml += `    <div class="flex justify-between py-1 border-b border-gray-100"><span class="font-semibold text-gray-500">${thName}</span><span class="text-gray-800 text-right">${cellValue}</span></div>`;
                 });
+
+                // 来場予定時刻（再確認用）
+                if (expectedTimeVal) {
+                    bodyHtml += `    <div class="flex justify-between py-1 border-b border-gray-100"><span class="font-semibold text-gray-500">来場予定時刻</span><span class="text-gray-800 text-right">${expectedTimeVal}</span></div>`;
+                }
+
+                // 実際の来場時間
                 bodyHtml += `    <div class="flex justify-between py-1"><span class="font-semibold text-green-600">来場時間</span><span class="font-semibold text-green-700 text-right">${timeVal || '未来場'}</span></div>`;
+                
                 bodyHtml += `  </div>`;
                 bodyHtml += `</td>`;
                 // -------------------------------------------------------------
