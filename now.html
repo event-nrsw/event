@@ -7,41 +7,46 @@
     <!-- Tailwind CSS (スタイリング用) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* スマホ用：1行表示 ＆ アコーディオン開閉設定 */
+        /* スマホ用：カード風リスト ＆ アコーディオンのスタイル調整 */
         @media (max-width: 768px) {
-            /* テーブル構造をスマホ用に解除 */
-            #result-table, #result-table tbody, #result-table tr, #result-table td {
+            .responsive-table, .responsive-table tbody, .responsive-table tr, .responsive-table td {
                 display: block;
                 width: 100%;
             }
-            #result-table tr {
-                margin-bottom: 0.5rem;
+            /* 重要：Tailwindのhidden指定を優先し、PC用セルをスマホでは非表示 */
+            .responsive-table td.hidden {
+                display: none !important;
+            }
+            .responsive-table thead {
+                display: none;
+            }
+            .responsive-table tr {
+                margin-bottom: 0.75rem;
                 background-color: #ffffff;
                 border: 1px solid #e5e7eb;
                 border-radius: 0.5rem;
-                box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+                box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
                 overflow: hidden;
             }
-            /* スマホ常時表示行（社名 ＆ 来場予定時刻 1行のみ） */
+            /* スマホ時の常時表示ヘッダー（社名と来場予定時刻） */
             .mobile-header-row {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
                 padding: 0.75rem 1rem;
-                background-color: #ffffff;
+                background-color: #f9fafb;
                 cursor: pointer;
                 user-select: none;
             }
-            /* スマホ詳細エリア（初期状態：完全非表示） */
+            /* 折りたたみ詳細コンテンツ（初期状態は完全に非表示） */
             .mobile-details {
                 display: none;
                 padding: 0.75rem 1rem;
                 border-top: 1px solid #f3f4f6;
-                background-color: #f9fafb;
+                background-color: #ffffff;
             }
-            /* タップされた時だけ表示 */
             .mobile-details.open {
-                display: block !important;
+                display: block;
             }
         }
     </style>
@@ -103,7 +108,7 @@
         <!-- 結果表示エリア -->
         <div class="bg-transparent sm:bg-white sm:shadow sm:rounded-lg sm:overflow-hidden sm:border sm:border-gray-200">
             <div class="sm:overflow-x-auto">
-                <table id="result-table" class="min-w-full divide-y divide-gray-200">
+                <table id="result-table" class="responsive-table min-w-full divide-y divide-gray-200">
                     <thead id="table-head" class="bg-gray-100 hidden sm:table-header-group">
                         <!-- 動的に列ヘッダーが生成されます -->
                     </thead>
@@ -242,7 +247,7 @@
             tableHead.innerHTML = headerHtml;
         }
 
-        // スマホ用アコーディオン開閉切り替え関数
+        // スマホ用のアコーディオン開閉切り替え関数
         function toggleAccordion(element) {
             const details = element.nextElementSibling;
             const icon = element.querySelector('.accordion-icon');
@@ -300,30 +305,32 @@
             // 3. 描画
             let bodyHtml = '';
             filteredData.forEach(item => {
-                // PC表示用データセル
+                // PC表示用のデータセルを生成 (PCでは通常の表形式)
                 let pcCellsHtml = '';
                 TARGET_COLUMNS_A.forEach(colIdx => {
+                    let thName = (cachedHeaderA.length > colIdx) ? cachedHeaderA[colIdx] : `列 ${colIdx + 1}`;
                     let cellValue = (item.rowA.length > colIdx && item.rowA[colIdx] !== undefined) ? item.rowA[colIdx] : '';
                     cellValue = cellValue.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
                     
-                    pcCellsHtml += `<td class="px-3 sm:px-6 py-2 sm:py-4 text-gray-700 sm:border-b sm:border-gray-200 hidden sm:table-cell">${cellValue}</td>`;
+                    pcCellsHtml += `<td data-label="${thName}" class="px-3 sm:px-6 py-2 sm:py-4 text-gray-700 sm:border-b sm:border-gray-200 hidden sm:table-cell">${cellValue}</td>`;
                 });
 
                 let timeVal = item.latestTime.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-                let pcTimeCell = `<td class="px-3 sm:px-6 py-2 sm:py-4 font-semibold text-green-700 bg-green-50/30 sm:bg-green-50/50 sm:border-b sm:border-gray-200 hidden sm:table-cell">${timeVal}</td>`;
+                let pcTimeCell = `<td data-label="来場時間" class="px-3 sm:px-6 py-2 sm:py-4 font-semibold text-green-700 bg-green-50/30 sm:bg-green-50/50 sm:border-b sm:border-gray-200 hidden sm:table-cell">${timeVal}</td>`;
 
-                // スマホ用データ抽出 (社名: 1, 来場予定: 8)
+                // スマホ用データの抽出
                 let companyVal = (item.rowA.length > 1 && item.rowA[1] !== undefined) ? item.rowA[1] : '';
                 let expectedTimeVal = (item.rowA.length > 8 && item.rowA[8] !== undefined) ? item.rowA[8] : '';
                 companyVal = companyVal.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
                 expectedTimeVal = expectedTimeVal.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+                // スマホ用アコーディオンHTML構築
                 bodyHtml += `<tr class="hover:bg-gray-50 block sm:table-row">`;
                 
-                // === スマホ専用エリア (常時は1行ヘッダーのみ) ===
-                bodyHtml += `<td colspan="${TARGET_COLUMNS_A.length + 1}" class="p-0 sm:hidden block">`;
+                // --- スマホ専用表示 (デフォルトで1行表示、タップで展開) ---
+                bodyHtml += `<td colspan="${TARGET_COLUMNS_A.length + 1}" class="p-0 sm:hidden block border-b border-gray-200">`;
                 
-                // 【常時表示】1行ヘッダー（社名 ＆ 来場予定時刻 ＆ アイコン）
+                // ヘルパー行（社名 ＆ 来場予定時刻 ＆ 展開アイコン：初期状態ではこの1行のみ表示）
                 bodyHtml += `  <div class="mobile-header-row" onclick="toggleAccordion(this)">`;
                 bodyHtml += `    <div class="font-bold text-gray-900 text-sm truncate pr-2">${companyVal ? companyVal : '(社名なし)'}</div>`;
                 bodyHtml += `    <div class="flex items-center gap-2 shrink-0">`;
@@ -334,15 +341,15 @@
                 bodyHtml += `    </div>`;
                 bodyHtml += `  </div>`;
                 
-                // 【初期非表示】タップされた時のみ展開される詳細コンテンツ
+                // 折りたたまれる詳細行（初期状態は完全に非表示。タップすると展開し、部署・役職・氏名・実際の来場時間のみを表示）
                 bodyHtml += `  <div class="mobile-details space-y-2 text-xs">`;
                 
-                // 部署(index 2)、役職(index 3)、氏名(index 4)
+                // 部署(index 2)、役職(index 3)、氏名(index 4)を表示
                 [2, 3, 4].forEach(colIdx => {
                     let thName = (cachedHeaderA.length > colIdx) ? cachedHeaderA[colIdx] : `列 ${colIdx + 1}`;
                     let cellValue = (item.rowA.length > colIdx && item.rowA[colIdx] !== undefined) ? item.rowA[colIdx] : '';
                     cellValue = cellValue.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-                    bodyHtml += `    <div class="flex justify-between py-1 border-b border-gray-200"><span class="font-semibold text-gray-500">${thName}</span><span class="text-gray-800 text-right">${cellValue}</span></div>`;
+                    bodyHtml += `    <div class="flex justify-between py-1 border-b border-gray-100"><span class="font-semibold text-gray-500">${thName}</span><span class="text-gray-800 text-right">${cellValue}</span></div>`;
                 });
 
                 // 実際の来場時間
@@ -350,8 +357,9 @@
                 
                 bodyHtml += `  </div>`;
                 bodyHtml += `</td>`;
+                // -------------------------------------------------------------
 
-                // === PC用エリア ===
+                // --- PC用テーブルセル ---
                 bodyHtml += pcCellsHtml + pcTimeCell;
 
                 bodyHtml += '</tr>';
