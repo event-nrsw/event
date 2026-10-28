@@ -22,9 +22,40 @@
         #result-area { margin-top: 24px; padding: 20px; background: #eef9ff; text-align: center; border-radius: 6px; }
         #qrcode { display: inline-block; margin: 15px 0; padding: 10px; background: white; border: 1px solid #ddd; }
         #qrcode img { display: block; margin: 0 auto; }
-        .download-hint { font-size: 12px; color: #666; margin-top: 4px; }
         .field-note { font-size: 12px; color: #666; font-weight: normal; margin-top: 2px; }
         
+        /* 目立つ保存案内のボタンスタイル（警告・強調風） */
+        .save-guide-box {
+            background-color: #fff3cd;
+            border: 1px solid #ffeeba;
+            border-radius: 6px;
+            padding: 14px 16px;
+            margin: 15px 0;
+            text-align: left;
+            color: #856404;
+        }
+        .guide-title {
+            font-weight: bold;
+            font-size: 15px;
+            margin: 0 0 6px 0;
+            color: #721c24;
+            text-align: center;
+        }
+        .guide-desc {
+            font-size: 13px;
+            margin: 0 0 8px 0;
+            text-align: center;
+        }
+        .guide-list {
+            margin: 0;
+            padding-left: 20px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .guide-list li {
+            margin-bottom: 6px;
+        }
+
         /* 個人情報取り扱い注記スタイル */
         .privacy-box {
             background-color: #f8f9fa;
@@ -122,18 +153,22 @@
     <!-- 3. 共通のQRコード・結果表示エリア -->
     <div id="result-area" style="display: none;">
         <h3 id="statusMsg"></h3>
-        <p>ＱＲコードは当日受付でご提示頂きます</p>
-        <p>必ず保存してください</p>
         
-        <!-- 画像タグに変換されるため長押し保存が可能になります -->
-        <div id="qrcode"></div>
-        <div class="download-hint">※QRコードを長押しして保存もできます</div>
-
-        <!-- 保存ボタン -->
-        <div style="margin-top: 12px;">
-            <button type="button" id="downloadBtn" style="background-color: #27ae60; padding: 10px; font-size: 14px;">QRコード画像を保存する</button>
-            <div class="download-hint" style="margin-top: 6px;">※端末によってはボタンまたは長押しをご利用ください</div>
+        <!-- ご指定の案内文（目立つようにボックス配置） -->
+        <div class="save-guide-box">
+            <p class="guide-title">⚠️ 必ず保存してください</p>
+            <p class="guide-desc">QRコードは当日受付でご提示いただきます</p>
+            <ul class="guide-list">
+                <li><strong>QRを長押しして保存</strong><br>
+                    ・iOSの場合は<strong>“写真”に保存</strong>を選択<br>
+                    ・Androidは<strong>画像をダウンロード</strong>を選択する
+                </li>
+                <li><strong>もしくはスクリーンショットを保存してください</strong></li>
+            </ul>
         </div>
+        
+        <!-- 長押し保存に対応させるためimgタグ化するコンテナ -->
+        <div id="qrcode"></div>
 
         <div class="info-list" id="infoList" style="text-align: left; margin-top: 15px; font-size: 14px; line-height: 1.6;"></div>
         
@@ -270,7 +305,7 @@
                     height: 150
                 });
 
-                // 【重要】生成されたcanvasをimgタグに即座に変換し、長押し保存を可能にする
+                // 生成されたcanvasをimgタグに即座に変換し、スマホでの長押し保存を可能にする
                 setTimeout(() => {
                     const canvas = qrContainer.querySelector('canvas');
                     if (canvas) {
@@ -305,25 +340,6 @@
             location.reload();
         });
     }
-
-    function downloadQRCode() {
-        const img = qrContainer.querySelector('img');
-        const canvas = qrContainer.querySelector('canvas');
-        let imageUrl = img ? img.src : (canvas ? canvas.toDataURL("image/png") : "");
-
-        if (imageUrl) {
-            const link = document.createElement('a');
-            link.href = imageUrl;
-            link.download = `qrcode_${generatedRegId}.png`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        } else {
-            alert("QRコード画像の取得に失敗しました。QRコードを長押しして保存をお試しください。");
-        }
-    }
-
-    document.getElementById('downloadBtn').addEventListener('click', downloadQRCode);
 </script>
 
 </body>
