@@ -20,7 +20,8 @@
         .view-section { display: none; }
         .view-section.active { display: block; }
         #result-area { margin-top: 24px; padding: 20px; background: #eef9ff; text-align: center; border-radius: 6px; }
-        #qrcode { display: inline-block; margin: 15px 0; padding: 10px; background: white; border: 1px solid #ddd; cursor: pointer; }
+        #qrcode { display: inline-block; margin: 15px 0; padding: 10px; background: white; border: 1px solid #ddd; }
+        #qrcode img { display: block; margin: 0 auto; }
         .download-hint { font-size: 12px; color: #666; margin-top: 4px; }
         .field-note { font-size: 12px; color: #666; font-weight: normal; margin-top: 2px; }
         
@@ -102,7 +103,7 @@
         </div>
     </div>
 
-    <!-- 2. 再発行画面（メアド入力のみ） -->
+    <!-- 2. 再発行画面 -->
     <div id="reissue-view" class="view-section">
         <h2>QRコード再発行</h2>
         <p style="font-size: 14px; color: #666; text-align: center;">ご登録いただいたメールアドレスを入力してください。</p>
@@ -122,15 +123,16 @@
     <div id="result-area" style="display: none;">
         <h3 id="statusMsg"></h3>
         <p>ＱＲコードは当日受付でご提示頂きます</p>
-        <p>必ずダウンロードして保存してください</p>
+        <p>必ず保存してください</p>
         
-        <div id="qrcode" title="クリックしてダウンロード"></div>
-        <div class="download-hint">※QRコードをクリックして保存</div>
+        <!-- 画像タグに変換されるため長押し保存が可能になります -->
+        <div id="qrcode"></div>
+        <div class="download-hint">※QRコードを長押しして保存もできます</div>
 
-        <!-- 👇 追加した保存ボタン -->
+        <!-- 保存ボタン -->
         <div style="margin-top: 12px;">
             <button type="button" id="downloadBtn" style="background-color: #27ae60; padding: 10px; font-size: 14px;">QRコード画像を保存する</button>
-            <div class="download-hint" style="margin-top: 6px;">※iPhone等で自動保存されない場合はQRコードを長押しして保存してください</div>
+            <div class="download-hint" style="margin-top: 6px;">※端末によってはボタンまたは長押しをご利用ください</div>
         </div>
 
         <div class="info-list" id="infoList" style="text-align: left; margin-top: 15px; font-size: 14px; line-height: 1.6;"></div>
@@ -143,13 +145,11 @@
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxJLpAaqKCAwPXfTNYtP-XPcIv63E3NBcmxI6DDITgs9ZAbnTC7Wo29rJWT3H8Gb8Jn/exec";
     const STORAGE_KEY = 'entry_form_settings';
 
-    // 10:00から19:00まで30分刻みの選択肢を生成する関数
     function generateTimeOptions() {
         const selectElem = document.getElementById('visitTime');
         for (let hour = 10; hour <= 19; hour++) {
             for (let min = 0; min < 60; min += 30) {
                 if (hour === 19 && min > 0) break;
-                
                 const timeString = `${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
                 const option = document.createElement('option');
                 option.value = timeString;
@@ -159,10 +159,8 @@
         }
     }
 
-    // ページ読み込み時に設定を反映して不要な項目を非表示・必須解除する
     window.addEventListener('DOMContentLoaded', () => {
         generateTimeOptions();
-
         const savedSettings = localStorage.getItem(STORAGE_KEY);
         const allFields = ['company', 'department', 'position', 'name', 'email', 'phone', 'visitTime'];
         const activeFields = savedSettings ? JSON.parse(savedSettings) : allFields;
@@ -195,7 +193,6 @@
     let generatedRegId = "";
     const qrContainer = document.getElementById('qrcode');
 
-    // 画面切り替えのイベント
     toReissueLink.addEventListener('click', () => {
         registerView.classList.remove('active');
         reissueView.classList.add('active');
@@ -206,7 +203,6 @@
         registerView.classList.add('active');
     });
 
-    // 通常登録送信
     document.getElementById('regForm').addEventListener('submit', function(e) {
         e.preventDefault();
         const submitBtn = document.getElementById('submitBtn');
@@ -226,7 +222,6 @@
         sendData(formData);
     });
 
-    // 再発行送信
     document.getElementById('reissueForm').addEventListener('submit', function(e) {
         e.preventDefault();
         const reissueBtn = document.getElementById('reissueBtn');
@@ -241,7 +236,6 @@
         sendData(formData, reissueBtn, "QRコードを再発行する");
     });
 
-    // 共通の通信処理
     function sendData(formData, btnToReset = null, defaultBtnText = "") {
         fetch(WEB_APP_URL, {
             method: 'POST',
@@ -268,12 +262,28 @@
                     ${data.visitTime ? `<strong>来場予定時刻:</strong> ${data.visitTime}` : ''}
                 `;
 
+                // 一度コンテナを空にしてQRコードを描画
                 qrContainer.innerHTML = "";
                 new QRCode(qrContainer, {
                     text: data.regId,
                     width: 150,
                     height: 150
                 });
+
+                // 【重要】生成されたcanvasをimgタグに即座に変換し、長押し保存を可能にする
+                setTimeout(() => {
+                    const canvas = qrContainer.querySelector('canvas');
+                    if (canvas) {
+                        const dataUrl = canvas.toDataURL("image/png");
+                        const img = document.createElement('img');
+                        img.src = dataUrl;
+                        img.alt = "受付用QRコード";
+                        img.width = 150;
+                        img.height = 150;
+                        qrContainer.innerHTML = "";
+                        qrContainer.appendChild(img);
+                    }
+                }, 50);
 
                 registerView.classList.remove('active');
                 reissueView.classList.remove('active');
@@ -296,7 +306,6 @@
         });
     }
 
-    // 共通のダウンロード処理関数
     function downloadQRCode() {
         const img = qrContainer.querySelector('img');
         const canvas = qrContainer.querySelector('canvas');
@@ -309,13 +318,11 @@
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+        } else {
+            alert("QRコード画像の取得に失敗しました。QRコードを長押しして保存をお試しください。");
         }
     }
 
-    // QRコード画像クリック時のダウンロード
-    qrContainer.addEventListener('click', downloadQRCode);
-
-    // 新規追加した「QRコード画像を保存する」ボタンのイベントリスナー
     document.getElementById('downloadBtn').addEventListener('click', downloadQRCode);
 </script>
 
