@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>入場管理・最新タイムスタンプ結合</title>
+    <title>エントリーリスト入場管理システム</title>
     <!-- Tailwind CSS (スタイリング用) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -93,11 +93,12 @@
                     </select>
                 </div>
 
-                <!-- 社名並び替え -->
+                <!-- 並べ替え -->
                 <div class="flex items-center gap-2">
-                    <label for="sort-company" class="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">社名順:</label>
+                    <label for="sort-company" class="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">並べ替え:</label>
                     <select id="sort-company" onchange="renderTable()" class="w-full bg-gray-50 border border-gray-300 text-gray-800 text-xs sm:text-sm rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
                         <option value="none">元の順序</option>
+                        <option value="time-asc">来場予定時刻 昇順</option>
                         <option value="asc">社名 昇順</option>
                         <option value="desc">社名 降順</option>
                     </select>
@@ -169,6 +170,16 @@
             return result;
         }
 
+        // 文字列から「HH:mm」形式の時刻を分換算数字に変換するヘルパー関数
+        function parseTimeToMinutes(timeStr) {
+            if (!timeStr) return 9999; // 未設定は末尾へ
+            const match = timeStr.match(/(\d{1,2}):(\d{2})/);
+            if (match) {
+                return parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
+            }
+            return 9999;
+        }
+
         async function loadData() {
             const statusEl = document.getElementById('status');
             statusEl.textContent = 'CSVデータを取得中...';
@@ -217,11 +228,14 @@
                     const keyA = (rowA.length > KEY_INDEX_A) ? rowA[KEY_INDEX_A].trim() : '';
                     const latestTime = keyA && latestTimeMap.has(keyA) ? latestTimeMap.get(keyA) : '';
                     const companyName = (rowA.length > 1 && rowA[1] !== undefined) ? rowA[1] : '';
+                    const expectedTime = (rowA.length > 8 && rowA[8] !== undefined) ? rowA[8] : '';
 
                     return {
                         rowA: rowA,
                         latestTime: latestTime,
-                        companyName: companyName
+                        companyName: companyName,
+                        expectedTime: expectedTime,
+                        expectedMinutes: parseTimeToMinutes(expectedTime)
                     };
                 });
 
@@ -269,6 +283,10 @@
             const totalCount = cachedCombinedData.length;
             const checkedInCount = cachedCombinedData.filter(item => item.latestTime !== '').length;
 
+            // 現在時刻（分）の取得
+            const now = new Date();
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
             // 1. キーワード検索 ＆ タイムスタンプ絞り込み
             let filteredData = cachedCombinedData.filter(item => {
                 const hasTime = item.latestTime !== '';
@@ -290,40 +308,50 @@
             });
 
             // 2. 並び替え (Sort)
-            if (sortValue !== 'none') {
-                filteredData.sort((a, b) => {
-                    const compA = a.companyName;
-                    const compB = b.companyName;
-                    if (sortValue === 'asc') {
-                        return compA.localeCompare(compB, 'ja');
-                    } else {
-                        return compB.localeCompare(compA, 'ja');
-                    }
-                });
+            if (sortValue === 'time-asc') {
+                filteredData.sort((a, b) => a.expectedMinutes - b.expectedMinutes);
+            } else if (sortValue === 'asc') {
+                filteredData.sort((a, b) => a.companyName.localeCompare(b.companyName, 'ja'));
+            } else if (sortValue === 'desc') {
+                filteredData.sort((a, b) => b.companyName.localeCompare(a.companyName, 'ja'));
             }
 
             // 3. 描画
             let bodyHtml = '';
-            filteredData.forEach(item => {
+            let targetScrollRowId = null;
+
+            filteredData.forEach((item, index) => {
                 const isCheckedIn = item.latestTime !== '';
+                
+                // 時刻昇順かつ現在時刻より過去かどうか判断
+                const isPastTime = (sortValue === 'time-asc' && item.expectedMinutes < currentMinutes);
+
+                // 自動スクロール対象の検出（現在時刻以降で最初の行）
+                if (sortValue === 'time-asc' && !targetScrollRowId && item.expectedMinutes >= currentMinutes) {
+                    targetScrollRowId = `row-item-${index}`;
+                }
+
+                // スタイル調整クラス（過去データ時のグレーアウト）
+                const pastRowClass = isPastTime ? 'bg-gray-100/80 text-gray-400 opacity-60' : '';
+                const pastHeaderClass = isPastTime ? 'bg-gray-200/60' : 'bg-f9fafb';
 
                 // ステータスバッジのHTML
                 const statusBadgeHtml = isCheckedIn
                     ? `<span class="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold rounded bg-green-500 text-white shadow-sm">済</span>`
                     : `<span class="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold rounded bg-yellow-400 text-gray-900 shadow-sm">未</span>`;
 
-                // PC表示用のデータセルを生成 (PCでは通常の表形式)
+                // PC表示用のデータセルを生成
                 let pcCellsHtml = '';
                 TARGET_COLUMNS_A.forEach(colIdx => {
                     let thName = (cachedHeaderA.length > colIdx) ? cachedHeaderA[colIdx] : `列 ${colIdx + 1}`;
                     let cellValue = (item.rowA.length > colIdx && item.rowA[colIdx] !== undefined) ? item.rowA[colIdx] : '';
                     cellValue = cellValue.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
                     
-                    pcCellsHtml += `<td data-label="${thName}" class="px-3 sm:px-6 py-2 sm:py-4 text-gray-700 sm:border-b sm:border-gray-200 hidden sm:table-cell">${cellValue}</td>`;
+                    pcCellsHtml += `<td data-label="${thName}" class="px-3 sm:px-6 py-2 sm:py-4 sm:border-b sm:border-gray-200 hidden sm:table-cell ${isPastTime ? 'text-gray-400' : 'text-gray-700'}">${cellValue}</td>`;
                 });
 
                 let timeVal = item.latestTime.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-                let pcTimeCell = `<td data-label="来場時間" class="px-3 sm:px-6 py-2 sm:py-4 font-semibold text-green-700 bg-green-50/30 sm:bg-green-50/50 sm:border-b sm:border-gray-200 hidden sm:table-cell">
+                let pcTimeCell = `<td data-label="来場時間" class="px-3 sm:px-6 py-2 sm:py-4 font-semibold ${isPastTime ? 'text-green-800/50 bg-gray-100' : 'text-green-700 bg-green-50/30 sm:bg-green-50/50'} sm:border-b sm:border-gray-200 hidden sm:table-cell">
                     <div class="flex items-center gap-2">
                         ${statusBadgeHtml}
                         <span>${timeVal || '-'}</span>
@@ -331,34 +359,33 @@
                 </td>`;
 
                 // スマホ用データの抽出
-                let companyVal = (item.rowA.length > 1 && item.rowA[1] !== undefined) ? item.rowA[1] : '';
-                let expectedTimeVal = (item.rowA.length > 8 && item.rowA[8] !== undefined) ? item.rowA[8] : '';
-                companyVal = companyVal.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-                expectedTimeVal = expectedTimeVal.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                let companyVal = item.companyName.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                let expectedTimeVal = item.expectedTime.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+                // 行全体のIDを割り当て
+                const rowId = `row-item-${index}`;
 
                 // スマホ用アコーディオンHTML構築
-                bodyHtml += `<tr class="hover:bg-gray-50 block sm:table-row">`;
+                bodyHtml += `<tr id="${rowId}" class="hover:bg-gray-50 block sm:table-row ${pastRowClass}">`;
                 
-                // --- スマホ専用表示 (デフォルトで1行表示、タップで展開) ---
+                // --- スマホ専用表示 ---
                 bodyHtml += `<td colspan="${TARGET_COLUMNS_A.length + 1}" class="p-0 sm:hidden block border-b border-gray-200">`;
                 
-                // ヘルパー行（社名 ＆ 来場予定時刻 ＆ ステータスバッジ（未/済） ＆ 展開アイコン）
-                bodyHtml += `  <div class="mobile-header-row" onclick="toggleAccordion(this)">`;
-                bodyHtml += `    <div class="font-bold text-gray-900 text-sm truncate pr-2">${companyVal ? companyVal : '(社名なし)'}</div>`;
+                // ヘルパー行
+                bodyHtml += `  <div class="mobile-header-row ${pastHeaderClass}" onclick="toggleAccordion(this)">`;
+                bodyHtml += `    <div class="font-bold text-sm truncate pr-2 ${isPastTime ? 'text-gray-500' : 'text-gray-900'}">${companyVal ? companyVal : '(社名なし)'}</div>`;
                 bodyHtml += `    <div class="flex items-center gap-2 shrink-0">`;
                 if (expectedTimeVal) {
-                    bodyHtml += `      <span class="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-200 font-medium">予定: ${expectedTimeVal}</span>`;
+                    bodyHtml += `      <span class="text-xs ${isPastTime ? 'bg-gray-200 text-gray-600 border-gray-300' : 'bg-blue-50 text-blue-700 border-blue-200'} px-2 py-0.5 rounded border font-medium">予定: ${expectedTimeVal}</span>`;
                 }
-                // 時刻（予定時刻）の後ろに「済/未」バッジを追加
                 bodyHtml += `      ${statusBadgeHtml}`;
                 bodyHtml += `      <svg class="accordion-icon w-4 h-4 text-gray-500 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>`;
                 bodyHtml += `    </div>`;
                 bodyHtml += `  </div>`;
                 
-                // 折りたたまれる詳細行（初期状態は完全に非表示。タップすると展開）
+                // 折りたたまれる詳細行
                 bodyHtml += `  <div class="mobile-details space-y-2 text-xs">`;
                 
-                // 部署(index 2)、役職(index 3)、氏名(index 4)を表示
                 [2, 3, 4].forEach(colIdx => {
                     let thName = (cachedHeaderA.length > colIdx) ? cachedHeaderA[colIdx] : `列 ${colIdx + 1}`;
                     let cellValue = (item.rowA.length > colIdx && item.rowA[colIdx] !== undefined) ? item.rowA[colIdx] : '';
@@ -366,12 +393,10 @@
                     bodyHtml += `    <div class="flex justify-between py-1 border-b border-gray-100"><span class="font-semibold text-gray-500">${thName}</span><span class="text-gray-800 text-right">${cellValue}</span></div>`;
                 });
 
-                // 実際の来場時間
                 bodyHtml += `    <div class="flex justify-between items-center py-1"><span class="font-semibold text-green-600">来場時間</span><span class="font-semibold text-green-700 text-right flex items-center gap-1">${statusBadgeHtml} ${timeVal || '未来場'}</span></div>`;
                 
                 bodyHtml += `  </div>`;
                 bodyHtml += `</td>`;
-                // -------------------------------------------------------------
 
                 // --- PC用テーブルセル ---
                 bodyHtml += pcCellsHtml + pcTimeCell;
@@ -382,6 +407,16 @@
             tableBody.innerHTML = bodyHtml;
             statusEl.innerHTML = `総件数: <span class="font-bold text-gray-900">${totalCount}件</span> ／ 来場済: <span class="font-bold text-green-600">${checkedInCount}件</span> <span class="text-xs text-gray-500 font-normal sm:ml-2">(表示中: ${filteredData.length}件)</span>`;
             statusEl.className = 'text-sm sm:base font-medium text-blue-600 text-center sm:text-left';
+
+            // 4. 時刻昇順選択時、スマホ表示幅（768px以下）の時のみ現在時刻該当行まで自動スクロール
+            if (sortValue === 'time-asc' && targetScrollRowId && window.innerWidth <= 768) {
+                setTimeout(() => {
+                    const targetEl = document.getElementById(targetScrollRowId);
+                    if (targetEl) {
+                        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 100);
+            }
         }
 
         // ページ読み込み時に実行
