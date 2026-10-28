@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>入場管理・最新タイムスタンプ結合</title>
+    <title>エントリー来場リスト</title>
     <!-- Tailwind CSS (スタイリング用) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -123,7 +123,9 @@
         const KEY_INDEX_A = 7; // CSV A の KEY列 = H列
         const TIME_INDEX_B = 0; // CSV B の 入場時間列 = A列
         const KEY_INDEX_B = 1; // CSV B の KEY列 = B列
-        const TARGET_COLUMNS_A = [1, 2, 3, 4]; // B, C, D, E列
+        
+        // 表示する列のインデックス (B=1, C=2, D=3, E=4, I=8) ※I列を追加
+        const TARGET_COLUMNS_A = [1, 2, 3, 4, 8]; 
 
         let cachedHeaderA = [];
         let cachedCombinedData = [];
@@ -257,15 +259,13 @@
                 if (filterValue === 'has-time' && !hasTime) return false;
                 if (filterValue === 'no-time' && hasTime) return false;
 
-                // キーワード検索チェック (B, C, D, E列 または 入場時間にキーワードが含まれるか)
+                // キーワード検索チェック
                 if (searchKeyword !== '') {
                     let matched = false;
-                    // B, C, D, E列をチェック
                     TARGET_COLUMNS_A.forEach(colIdx => {
                         let val = (item.rowA.length > colIdx && item.rowA[colIdx] !== undefined) ? String(item.rowA[colIdx]).toLowerCase() : '';
                         if (val.includes(searchKeyword)) matched = true;
                     });
-                    // 入場時間もチェック
                     if (item.latestTime.toLowerCase().includes(searchKeyword)) matched = true;
 
                     if (!matched) return false;
@@ -301,7 +301,7 @@
                 });
 
                 let timeVal = item.latestTime.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-                bodyHtml += `<td data-label="入場時間" class="px-3 sm:px-6 py-2 sm:py-4 font-semibold text-green-700 bg-green-50/30 sm:bg-green-50/50 sm:border-b sm:border-gray-200">${timeVal}</td>`;
+                bodyHtml += `<td data-label="来場時間" class="px-3 sm:px-6 py-2 sm:py-4 font-semibold text-green-700 bg-green-50/30 sm:bg-green-50/50 sm:border-b sm:border-gray-200">${timeVal}</td>`;
                 
                 bodyHtml += '</tr>';
             });
