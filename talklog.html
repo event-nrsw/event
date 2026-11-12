@@ -21,29 +21,27 @@
     background-color: var(--bg);
     color: var(--text);
     margin: 0;
-    padding: 20px;
+    padding: 10px;
     font-size: 14px;
   }
   .container {
     max-width: 1600px;
     margin: 0 auto;
     background: #fff;
-    padding: 20px;
+    padding: 12px;
     border-radius: 8px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   }
   .header-bar {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
     gap: 12px;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
     padding-bottom: 12px;
     border-bottom: 2px solid #e2e8f0;
   }
   h1 {
-    font-size: 20px;
+    font-size: 18px;
     margin: 0;
     color: var(--primary);
   }
@@ -54,14 +52,15 @@
     align-items: center;
   }
   input[type="text"] {
-    padding: 7px 12px;
+    padding: 8px 12px;
     border: 1px solid var(--border);
     border-radius: 4px;
-    width: 260px;
+    flex: 1;
+    min-width: 200px;
     font-size: 14px;
   }
   button {
-    padding: 7px 14px;
+    padding: 8px 14px;
     background-color: var(--primary);
     color: #fff;
     border: none;
@@ -69,6 +68,7 @@
     cursor: pointer;
     font-size: 13px;
     font-weight: bold;
+    white-space: nowrap;
   }
   button:hover {
     background-color: var(--primary-hover);
@@ -80,21 +80,26 @@
     background-color: #334155;
   }
   .status {
-    font-size: 13px;
+    font-size: 12px;
     color: var(--muted);
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     display: flex;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 4px;
   }
   .table-wrapper {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch; /* スマホでスムーズに横スクロールさせる */
     max-height: 75vh;
     border: 1px solid var(--border);
+    border-radius: 4px;
   }
   table {
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
+    min-width: 1100px; /* スマホで窮屈になりすぎないよう最低幅を確保し、横スクロールさせる */
   }
   th, td {
     border: 1px solid var(--border);
@@ -118,7 +123,6 @@
   tr:hover {
     background-color: #eff6ff !important;
   }
-  /* 半角英数（URL等含む）行の薄い黄色ハイライト */
   tr.highlight-yellow {
     background-color: #fef9c3 !important;
   }
@@ -135,8 +139,31 @@
     color: #b91c1c;
     padding: 12px;
     border-radius: 4px;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
     display: none;
+    font-size: 13px;
+  }
+
+  /* タブレット・PC向けレイアウト調整 (768px以上) */
+  @media (min-width: 768px) {
+    body {
+      padding: 20px;
+    }
+    .container {
+      padding: 20px;
+    }
+    .header-bar {
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+    }
+    h1 {
+      font-size: 20px;
+    }
+    input[type="text"] {
+      width: 260px;
+      flex: initial;
+    }
   }
 </style>
 </head>
@@ -146,9 +173,9 @@
   <div class="header-bar">
     <h1>商談・コミュニケーション一覧</h1>
     <div class="controls">
-      <input type="text" id="searchInput" placeholder="キーワード検索（社名・氏名・メーカー等）..." oninput="filterTable()">
-      <button onclick="loadData()">最新データ再読込</button>
-      <button class="secondary" onclick="exportCSV()">表示データをCSV出力</button>
+      <input type="text" id="searchInput" placeholder="キーワード検索..." oninput="filterTable()">
+      <button onclick="loadData()">最新再読込</button>
+      <button class="secondary" onclick="exportCSV()">CSV出力</button>
     </div>
   </div>
 
@@ -163,8 +190,8 @@
     <table id="dataTable">
       <thead>
         <tr>
-          <th style="width: 130px;">タイムスタンプ</th>
-          <th style="width: 110px;">登録コード</th>
+          <th style="width: 125px;">タイムスタンプ</th>
+          <th style="width: 105px;">登録コード</th>
           <th style="width: 110px;">来場社</th>
           <th style="width: 100px;">部署</th>
           <th style="width: 80px;">役職</th>
@@ -172,8 +199,8 @@
           <th style="width: 110px;">対応メーカー</th>
           <th style="width: 70px;">関心度</th>
           <th style="width: 90px;">希望項目</th>
-          <th style="width: 180px;">対象商品</th>
-          <th style="width: 200px;">メモ（申し送り事項）</th>
+          <th style="width: 160px;">対象商品</th>
+          <th style="width: 180px;">メモ（申し送り事項）</th>
         </tr>
       </thead>
       <tbody id="tableBody">
@@ -240,7 +267,7 @@
     const statusText = document.getElementById('statusText');
     const errorBox = document.getElementById('errorBox');
     errorBox.style.display = 'none';
-    statusText.textContent = 'Googleスプレッドシートからデータを取得中...';
+    statusText.textContent = 'データ取得中...';
 
     try {
       const cacheBuster = `&t=${Date.now()}`;
@@ -290,9 +317,6 @@
         }
 
         const matched = masterMap.get(code);
-
-        // 対応メーカーが半角英数・記号（ASCII文字）のみで構成されているか判定
-        // ※空欄ではなく、かつすべて半角文字（日本語や全角文字を含まない）の場合に true
         const isHalfWidthMaker = maker.length > 0 && /^[\x20-\x7E]+$/.test(maker);
 
         mergedRecords.push({
@@ -332,7 +356,6 @@
     records.forEach(rec => {
       const tr = document.createElement('tr');
 
-      // 対応メーカーが半角英数のみの場合、行全体に薄い黄色のクラスを付与
       if (rec.isHalfWidthMaker) {
         tr.classList.add('highlight-yellow');
       }
@@ -356,7 +379,7 @@
         td.textContent = c.val;
         if (c.className) td.classList.add(c.className);
         if (c.unmatched && !c.val) {
-          td.textContent = '（マスタ未一致）';
+          td.textContent = '（未一致）';
           td.classList.add('unmatched');
         }
         tr.appendChild(td);
@@ -365,7 +388,7 @@
       tbody.appendChild(tr);
     });
 
-    countText.textContent = `表示件数: ${records.length} 件 / 全 ${mergedRecords.length} 件`;
+    countText.textContent = `${records.length}件 / 全${mergedRecords.length}件`;
   }
 
   function filterTest(rec, keyword) {
