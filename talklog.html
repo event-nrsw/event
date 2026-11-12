@@ -90,7 +90,7 @@
   }
   .table-wrapper {
     overflow-x: auto;
-    -webkit-overflow-scrolling: touch; /* スマホでスムーズに横スクロールさせる */
+    -webkit-overflow-scrolling: touch;
     max-height: 75vh;
     border: 1px solid var(--border);
     border-radius: 4px;
@@ -99,7 +99,7 @@
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
-    min-width: 1100px; /* スマホで窮屈になりすぎないよう最低幅を確保し、横スクロールさせる */
+    min-width: 1100px;
   }
   th, td {
     border: 1px solid var(--border);
@@ -116,6 +116,22 @@
     z-index: 10;
     font-weight: bold;
     color: #1e293b;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.15s;
+  }
+  th:hover {
+    background-color: #e2e8f0;
+  }
+  th.sort-asc::after {
+    content: " ▲";
+    font-size: 11px;
+    color: var(--primary);
+  }
+  th.sort-desc::after {
+    content: " ▼";
+    font-size: 11px;
+    color: var(--primary);
   }
   tr:nth-child(even) {
     background-color: #f8fafc;
@@ -173,7 +189,7 @@
   <div class="header-bar">
     <h1>商談・コミュニケーション一覧</h1>
     <div class="controls">
-      <input type="text" id="searchInput" placeholder="キーワード検索..." oninput="filterTable()">
+      <input type="text" id="searchInput" placeholder="キーワード検索..." oninput="updateView()">
       <button onclick="loadData()">最新再読込</button>
       <button class="secondary" onclick="exportCSV()">CSV出力</button>
     </div>
@@ -190,17 +206,17 @@
     <table id="dataTable">
       <thead>
         <tr>
-          <th style="width: 125px;">タイムスタンプ</th>
-          <th style="width: 105px;">登録コード</th>
-          <th style="width: 110px;">来場社</th>
-          <th style="width: 100px;">部署</th>
-          <th style="width: 80px;">役職</th>
-          <th style="width: 90px;">氏名</th>
-          <th style="width: 110px;">対応メーカー</th>
-          <th style="width: 70px;">関心度</th>
-          <th style="width: 90px;">希望項目</th>
-          <th style="width: 160px;">対象商品</th>
-          <th style="width: 180px;">メモ（申し送り事項）</th>
+          <th style="width: 125px;" data-key="timestamp" onclick="toggleSort('timestamp', this)">タイムスタンプ</th>
+          <th style="width: 105px;" data-key="code" onclick="toggleSort('code', this)">登録コード</th>
+          <th style="width: 110px;" data-key="company" onclick="toggleSort('company', this)">来場社</th>
+          <th style="width: 100px;" data-key="department" onclick="toggleSort('department', this)">部署</th>
+          <th style="width: 80px;"  data-key="position" onclick="toggleSort('position', this)">役職</th>
+          <th style="width: 90px;"  data-key="name" onclick="toggleSort('name', this)">氏名</th>
+          <th style="width: 110px;" data-key="maker" onclick="toggleSort('maker', this)">対応メーカー</th>
+          <th style="width: 70px;"  data-key="interest" onclick="toggleSort('interest', this)">関心度</th>
+          <th style="width: 90px;"  data-key="request" onclick="toggleSort('request', this)">希望項目</th>
+          <th style="width: 160px;" data-key="product" onclick="toggleSort('product', this)">対象商品</th>
+          <th style="width: 180px;" data-key="memo" onclick="toggleSort('memo', this)">メモ（申し送り事項）</th>
         </tr>
       </thead>
       <tbody id="tableBody">
@@ -214,6 +230,7 @@
   const CSV2_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRMBhJHb7uwcE_rDrArB-RfhtC4vAjTZf5qis8HTgGd8vNXYgfK2eMyrS95CQyiUVaKmd0jo6tGaGfg/pub?gid=0&single=true&output=csv";
 
   let mergedRecords = [];
+  let sortState = { key: null, direction: 'asc' };
 
   function parseCSV(text) {
     const rows = [];
@@ -338,7 +355,7 @@
 
       const now = new Date().toLocaleTimeString('ja-JP');
       statusText.textContent = `最終更新: ${now}`;
-      filterTable();
+      updateView();
 
     } catch (err) {
       console.error(err);
@@ -346,6 +363,53 @@
       errorBox.style.display = 'block';
       errorBox.innerHTML = `データの読み込みに失敗しました。<br><small>詳細: ${err.message}</small>`;
     }
+  }
+
+  function toggleSort(key, thElement) {
+    if (sortState.key === key) {
+      sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortState.key = key;
+      sortState.direction = 'asc';
+    }
+
+    document.querySelectorAll('#dataTable th').forEach(th => {
+      th.classList.remove('sort-asc', 'sort-desc');
+    });
+    thElement.classList.add(sortState.direction === 'asc' ? 'sort-asc' : 'sort-desc');
+
+    updateView();
+  }
+
+  function getProcessedRecords() {
+    const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
+    let result = keyword
+      ? mergedRecords.filter(rec => filterTest(rec, keyword))
+      : [...mergedRecords];
+
+    if (sortState.key) {
+      const { key, direction } = sortState;
+      const mult = direction === 'asc' ? 1 : -1;
+
+      result.sort((a, b) => {
+        const valA = a[key] || '';
+        const valB = b[key] || '';
+
+        // 空欄は昇順・降順に関わらず末尾に配置
+        if (valA === '' && valB === '') return 0;
+        if (valA === '') return 1;
+        if (valB === '') return -1;
+
+        return valA.localeCompare(valB, 'ja', { numeric: true, sensitivity: 'base' }) * mult;
+      });
+    }
+
+    return result;
+  }
+
+  function updateView() {
+    const records = getProcessedRecords();
+    renderTable(records);
   }
 
   function renderTable(records) {
@@ -399,27 +463,13 @@
     ].some(field => field.toLowerCase().includes(keyword));
   }
 
-  function filterTable() {
-    const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
-    if (!keyword) {
-      renderTable(mergedRecords);
-      return;
-    }
-    const filtered = mergedRecords.filter(rec => filterTest(rec, keyword));
-    renderTable(filtered);
-  }
-
   function exportCSV() {
     const headers = [
       'タイムスタンプ', '登録コード', '来場社', '部署', '役職', '氏名',
       '対応メーカー', '関心度', '希望項目', '対象商品', 'メモ（申し送り事項）'
     ];
 
-    const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
-    const targetRecords = keyword
-      ? mergedRecords.filter(rec => filterTest(rec, keyword))
-      : mergedRecords;
-
+    const targetRecords = getProcessedRecords();
     const escapeCsv = (val) => `"${String(val ?? '').replace(/"/g, '""')}"`;
 
     const csvLines = [
