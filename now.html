@@ -64,9 +64,18 @@
                 <div id="status" class="text-sm sm:text-lg font-medium text-blue-600 text-center sm:text-left">
                     データを読み込み中...
                 </div>
-                <button onclick="loadData()" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-md shadow transition duration-200 active:scale-95 text-sm">
-                    データを再読み込み
-                </button>
+                <!-- ボタンエリア（再読み込み・CSVダウンロード） -->
+                <div class="flex flex-col sm:flex-row w-full sm:w-auto gap-2">
+                    <button onclick="loadData()" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-md shadow transition duration-200 active:scale-95 text-sm">
+                        データを再読み込み
+                    </button>
+                    <button onclick="downloadCSV()" class="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-2 rounded-md shadow transition duration-200 active:scale-95 text-sm flex items-center justify-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                        </svg>
+                        表示明細をダウンロード
+                    </button>
+                </div>
             </div>
 
             <!-- キーワード検索ボックス -->
@@ -135,6 +144,7 @@
 
         let cachedHeaderA = [];
         let cachedCombinedData = [];
+        let currentFilteredData = []; // 現在画面に表示中のデータを保持する変数
 
         // 簡易CSVパーサー
         function parseCSV(text) {
@@ -316,6 +326,9 @@
                 filteredData.sort((a, b) => b.companyName.localeCompare(a.companyName, 'ja'));
             }
 
+            // ダウンロード用に現在の表示リストを保存
+            currentFilteredData = filteredData;
+
             // 3. 描画
             let bodyHtml = '';
             let targetScrollRowId = null;
@@ -417,6 +430,58 @@
                     }
                 }, 100);
             }
+        }
+
+        // 表示中の明細をCSVダウンロードする関数
+        function downloadCSV() {
+            if (!currentFilteredData || currentFilteredData.length === 0) {
+                alert('ダウンロードするデータがありません。');
+                return;
+            }
+
+            // CSVエスケープ用ヘルパー
+            const escapeCSV = (val) => {
+                if (val === null || val === undefined) return '""';
+                const str = String(val).replace(/"/g, '""');
+                return `"${str}"`;
+            };
+
+            const csvRows = [];
+
+            // 1. ヘッダー行の作成（表示中の列 + ステータス + 来場時間）
+            const headers = TARGET_COLUMNS_A.map(colIdx => {
+                return (cachedHeaderA.length > colIdx) ? cachedHeaderA[colIdx] : `列 ${colIdx + 1}`;
+            });
+            headers.push('ステータス', '来場時間');
+            csvRows.push(headers.map(escapeCSV).join(','));
+
+            // 2. データ行の作成
+            currentFilteredData.forEach(item => {
+                const rowValues = TARGET_COLUMNS_A.map(colIdx => {
+                    return (item.rowA.length > colIdx && item.rowA[colIdx] !== undefined) ? item.rowA[colIdx] : '';
+                });
+                const statusText = item.latestTime !== '' ? '済' : '未';
+                rowValues.push(statusText, item.latestTime || '');
+                csvRows.push(rowValues.map(escapeCSV).join(','));
+            });
+
+            // 3. BOM付きUTF-8でBlobを作成しダウンロードを実行
+            const csvString = csvRows.join('\r\n');
+            const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+            const blob = new Blob([bom, csvString], { type: 'text/csv;charset=utf-8;' });
+
+            const now = new Date();
+            const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+            const filename = `入場管理明細_${timestamp}.csv`;
+
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
         }
 
         // ページ読み込み時に実行
