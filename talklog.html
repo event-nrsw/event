@@ -94,13 +94,17 @@
   table {
     width: 100%;
     border-collapse: collapse;
-    white-space: nowrap;
+    /* テーブル全体の強制折り返しを有効化するため変更 */
+    table-layout: fixed;
   }
   th, td {
     border: 1px solid var(--border);
     padding: 8px 10px;
     text-align: left;
     vertical-align: top;
+    /* 文字が長すぎる場合に折り返す設定 */
+    white-space: pre-wrap;
+    word-break: break-all;
   }
   th {
     background-color: #f1f5f9;
@@ -115,13 +119,6 @@
   }
   tr:hover {
     background-color: #eff6ff;
-  }
-  /* 改行を含むメモ欄などの折り返し設定 */
-  td.wrap-col {
-    white-space: pre-wrap;
-    min-width: 180px;
-    max-width: 320px;
-    word-break: break-word;
   }
   td.center {
     text-align: center;
@@ -164,17 +161,17 @@
     <table id="dataTable">
       <thead>
         <tr>
-          <th>タイムスタンプ</th>
-          <th>来場社</th>
-          <th>部署</th>
-          <th>役職</th>
-          <th>氏名</th>
-          <th>対応メーカー</th>
-          <th>登録コード</th>
-          <th>関心度</th>
-          <th>希望項目</th>
-          <th>対象商品</th>
-          <th>メモ（申し送り事項）</th>
+          <th style="width: 130px;">タイムスタンプ</th>
+          <th style="width: 110px;">来場社</th>
+          <th style="width: 100px;">部署</th>
+          <th style="width: 80px;">役職</th>
+          <th style="width: 90px;">氏名</th>
+          <th style="width: 110px;">対応メーカー</th>
+          <th style="width: 110px;">登録コード</th>
+          <th style="width: 70px;">関心度</th>
+          <th style="width: 90px;">希望項目</th>
+          <th style="width: 180px;">対象商品</th>
+          <th style="width: 200px;">メモ（申し送り事項）</th>
         </tr>
       </thead>
       <tbody id="tableBody">
@@ -191,7 +188,6 @@
 
   let mergedRecords = [];
 
-  // セル内の改行・カンマ・ダブルクォーテーションに対応したCSVパーサー
   function parseCSV(text) {
     const rows = [];
     let currentRow = [];
@@ -247,7 +243,6 @@
     statusText.textContent = 'Googleスプレッドシートからデータを取得中...';
 
     try {
-      // キャッシュ回避のためタイムスタンプを付与して並行取得
       const cacheBuster = `&t=${Date.now()}`;
       const [res1, res2] = await Promise.all([
         fetch(CSV1_URL + cacheBuster),
@@ -262,39 +257,34 @@
       const rows1 = parseCSV(text1);
       const rows2 = parseCSV(text2);
 
-      // 2つ目のCSV（画像2）から「H列(index 7) => B:E列(index 1..4)」の検索用Mapを作成
       const masterMap = new Map();
-      // 1行目はヘッダ（「タイムスタンプ」「社名」...）のため i = 1 から開始
       for (let i = 1; i < rows2.length; i++) {
         const r = rows2[i];
         if (!r || r.length < 8) continue;
-        const regCode = (r[7] || '').trim(); // H列: 登録番号
+        const regCode = (r[7] || '').trim();
         if (regCode) {
           masterMap.set(regCode, {
-            company: (r[1] || '').trim(),    // B列: 社名
-            department: (r[2] || '').trim(), // C列: 部署
-            position: (r[3] || '').trim(),   // D列: 役職
-            name: (r[4] || '').trim()        // E列: 氏名
+            company:    (r[1] || '').trim(),
+            department: (r[2] || '').trim(),
+            position:   (r[3] || '').trim(),
+            name:       (r[4] || '').trim()
           });
         }
       }
 
-      // 1つ目のCSV（画像1）を走査して突合（画像1は1行目からデータのため i = 0 から開始）
       mergedRecords = [];
       for (let i = 0; i < rows1.length; i++) {
         const r = rows1[i];
-        // 空行スキップ
         if (!r || r.length === 0 || r.every(cell => cell.trim() === '')) continue;
 
-        const timestamp = (r[0] || '').trim(); // 画像1 A列
-        const maker     = (r[1] || '').trim(); // 画像1 B列
-        const code      = (r[2] || '').trim(); // 画像1 C列
-        const interest  = (r[3] || '').trim(); // 画像1 D列
-        const request   = (r[4] || '').trim(); // 画像1 E列
-        const product   = (r[5] || '').trim(); // 画像1 F列
-        const memo      = (r[6] || '').trim(); // 画像1 G列
+        const timestamp = (r[0] || '').trim();
+        const maker     = (r[1] || '').trim();
+        const code      = (r[2] || '').trim();
+        const interest  = (r[3] || '').trim();
+        const request   = (r[4] || '').trim();
+        const product   = (r[5] || '').trim();
+        const memo      = (r[6] || '').trim();
 
-        // もし1行目にヘッダ行が混ざっていた場合の保険スキップ
         if (i === 0 && (timestamp === 'タイムスタンプ' || code === '登録番号' || code === '登録コード')) {
           continue;
         }
@@ -325,7 +315,7 @@
       console.error(err);
       statusText.textContent = '取得失敗';
       errorBox.style.display = 'block';
-      errorBox.innerHTML = `データの読み込みに失敗しました。スプレッドシートの「ウェブに公開」設定やネットワーク接続を確認してください。<br><small>詳細: ${err.message}</small>`;
+      errorBox.innerHTML = `データの読み込みに失敗しました。<br><small>詳細: ${err.message}</small>`;
     }
   }
 
@@ -347,8 +337,8 @@
         { val: rec.code },
         { val: rec.interest, className: 'center' },
         { val: rec.request },
-        { val: rec.product, className: 'wrap-col' },
-        { val: rec.memo, className: 'wrap-col' }
+        { val: rec.product },
+        { val: rec.memo }
       ];
 
       cells.forEach(c => {
@@ -368,29 +358,21 @@
     countText.textContent = `表示件数: ${records.length} 件 / 全 ${mergedRecords.length} 件`;
   }
 
+  function filterTest(rec, keyword) {
+    return [
+      rec.timestamp, rec.company, rec.department, rec.position,
+      rec.name, rec.maker, rec.code, rec.interest,
+      rec.request, rec.product, rec.memo
+    ].some(field => field.toLowerCase().includes(keyword));
+  }
+
   function filterTable() {
     const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
     if (!keyword) {
       renderTable(mergedRecords);
       return;
     }
-
-    const filtered = mergedRecords.filter(rec => {
-      return [
-        rec.timestamp,
-        rec.company,
-        rec.department,
-        rec.position,
-        rec.name,
-        rec.maker,
-        rec.code,
-        rec.interest,
-        rec.request,
-        rec.product,
-        rec.memo
-      ].some(field => field.toLowerCase().includes(keyword));
-    });
-
+    const filtered = mergedRecords.filter(rec => filterTest(rec, keyword));
     renderTable(filtered);
   }
 
@@ -402,9 +384,7 @@
 
     const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
     const targetRecords = keyword
-      ? mergedRecords.filter(rec =>
-          Object.values(rec).some(v => String(v).toLowerCase().includes(keyword))
-        )
+      ? mergedRecords.filter(rec => filterTest(rec, keyword))
       : mergedRecords;
 
     const escapeCsv = (val) => `"${String(val ?? '').replace(/"/g, '""')}"`;
@@ -417,8 +397,7 @@
       ].map(escapeCsv).join(','))
     ];
 
-    // Excelで文字化けしないようUTF-8 BOMを付与
-    const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+    const bom = new Uint8Array([0xEF, 187, 191]);
     const blob = new Blob([bom, csvLines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
 
@@ -429,7 +408,6 @@
     URL.revokeObjectURL(url);
   }
 
-  // 初期読み込み
   window.addEventListener('DOMContentLoaded', loadData);
 </script>
 
