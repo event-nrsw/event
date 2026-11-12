@@ -116,7 +116,11 @@
     background-color: #f8fafc;
   }
   tr:hover {
-    background-color: #eff6ff;
+    background-color: #eff6ff !important;
+  }
+  /* 半角英数（URL等含む）行の薄い黄色ハイライト */
+  tr.highlight-yellow {
+    background-color: #fef9c3 !important;
   }
   td.center {
     text-align: center;
@@ -179,9 +183,7 @@
 </div>
 
 <script>
-  // CSV1: コミュニケーションデータ（画像1）
   const CSV1_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSxmWHAwArRtGosKX3vwFm834ccwgOcsRe1T3iqAsm4bRuExzAPgT3keaXg_4UB_bgoJNAFLObLYdPe/pub?gid=0&single=true&output=csv";
-  // CSV2: 受付マスタデータ（画像2）
   const CSV2_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRMBhJHb7uwcE_rDrArB-RfhtC4vAjTZf5qis8HTgGd8vNXYgfK2eMyrS95CQyiUVaKmd0jo6tGaGfg/pub?gid=0&single=true&output=csv";
 
   let mergedRecords = [];
@@ -289,6 +291,10 @@
 
         const matched = masterMap.get(code);
 
+        // 対応メーカーが半角英数・記号（ASCII文字）のみで構成されているか判定
+        // ※空欄ではなく、かつすべて半角文字（日本語や全角文字を含まない）の場合に true
+        const isHalfWidthMaker = maker.length > 0 && /^[\x20-\x7E]+$/.test(maker);
+
         mergedRecords.push({
           timestamp,
           code,
@@ -301,7 +307,8 @@
           request,
           product,
           memo,
-          isMatched: !!matched
+          isMatched: !!matched,
+          isHalfWidthMaker
         });
       }
 
@@ -325,7 +332,11 @@
     records.forEach(rec => {
       const tr = document.createElement('tr');
 
-      // 列順変更（タイムスタンプ → 登録コード → 来場社 → 部署 → 役職 → 氏名 → 対応メーカー → 関心度 → 希望項目 → 対象商品 → メモ）
+      // 対応メーカーが半角英数のみの場合、行全体に薄い黄色のクラスを付与
+      if (rec.isHalfWidthMaker) {
+        tr.classList.add('highlight-yellow');
+      }
+
       const cells = [
         { val: rec.timestamp },
         { val: rec.code },
