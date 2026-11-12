@@ -94,7 +94,6 @@
   table {
     width: 100%;
     border-collapse: collapse;
-    /* テーブル全体の強制折り返しを有効化するため変更 */
     table-layout: fixed;
   }
   th, td {
@@ -102,7 +101,6 @@
     padding: 8px 10px;
     text-align: left;
     vertical-align: top;
-    /* 文字が長すぎる場合に折り返す設定 */
     white-space: pre-wrap;
     word-break: break-all;
   }
@@ -162,12 +160,12 @@
       <thead>
         <tr>
           <th style="width: 130px;">タイムスタンプ</th>
+          <th style="width: 110px;">登録コード</th>
           <th style="width: 110px;">来場社</th>
           <th style="width: 100px;">部署</th>
           <th style="width: 80px;">役職</th>
           <th style="width: 90px;">氏名</th>
           <th style="width: 110px;">対応メーカー</th>
-          <th style="width: 110px;">登録コード</th>
           <th style="width: 70px;">関心度</th>
           <th style="width: 90px;">希望項目</th>
           <th style="width: 180px;">対象商品</th>
@@ -293,12 +291,12 @@
 
         mergedRecords.push({
           timestamp,
+          code,
           company:    matched ? matched.company : '',
           department: matched ? matched.department : '',
           position:   matched ? matched.position : '',
           name:       matched ? matched.name : '',
           maker,
-          code,
           interest,
           request,
           product,
@@ -327,14 +325,15 @@
     records.forEach(rec => {
       const tr = document.createElement('tr');
 
+      // 列順変更（タイムスタンプ → 登録コード → 来場社 → 部署 → 役職 → 氏名 → 対応メーカー → 関心度 → 希望項目 → 対象商品 → メモ）
       const cells = [
         { val: rec.timestamp },
+        { val: rec.code },
         { val: rec.company, unmatched: !rec.isMatched },
         { val: rec.department },
         { val: rec.position },
         { val: rec.name },
         { val: rec.maker },
-        { val: rec.code },
         { val: rec.interest, className: 'center' },
         { val: rec.request },
         { val: rec.product },
@@ -360,8 +359,8 @@
 
   function filterTest(rec, keyword) {
     return [
-      rec.timestamp, rec.company, rec.department, rec.position,
-      rec.name, rec.maker, rec.code, rec.interest,
+      rec.timestamp, rec.code, rec.company, rec.department, rec.position,
+      rec.name, rec.maker, rec.interest,
       rec.request, rec.product, rec.memo
     ].some(field => field.toLowerCase().includes(keyword));
   }
@@ -378,8 +377,8 @@
 
   function exportCSV() {
     const headers = [
-      'タイムスタンプ', '来場社', '部署', '役職', '氏名',
-      '対応メーカー', '登録コード', '関心度', '希望項目', '対象商品', 'メモ（申し送り事項）'
+      'タイムスタンプ', '登録コード', '来場社', '部署', '役職', '氏名',
+      '対応メーカー', '関心度', '希望項目', '対象商品', 'メモ（申し送り事項）'
     ];
 
     const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
@@ -392,8 +391,8 @@
     const csvLines = [
       headers.map(escapeCsv).join(','),
       ...targetRecords.map(r => [
-        r.timestamp, r.company, r.department, r.position, r.name,
-        r.maker, r.code, r.interest, r.request, r.product, r.memo
+        r.timestamp, r.code, r.company, r.department, r.position, r.name,
+        r.maker, r.interest, r.request, r.product, r.memo
       ].map(escapeCsv).join(','))
     ];
 
