@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>商談・コミュニケーション一覧</title>
+<style>
+  :root {
+    --primary: #1e40af;
+    --primary-hover: #1d4ed8;
+    --bg: #f8fafc;
+    --border: #cbd5e1;
+    --text: #0f172a;
+    --muted: #64748b;
+  }
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    font-family: "Meiryo", "Hiragino Kaku Gothic ProN", sans-serif;
+    background-color: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 20px;
+    font-size: 14px;
+  }
+  .container {
+    max-width: 1600px;
+    margin: 0 auto;
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  .header-bar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #e2e8f0;
+  }
+  h1 {
+    font-size: 20px;
+    margin: 0;
+    color: var(--primary);
+  }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+  input[type="text"] {
+    padding: 7px 12px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    width: 260px;
+    font-size: 14px;
+  }
+  button {
+    padding: 7px 14px;
+    background-color: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: bold;
+  }
+  button:hover {
+    background-color: var(--primary-hover);
+  }
+  button.secondary {
+    background-color: #475569;
+  }
+  button.secondary:hover {
+    background-color: #334155;
+  }
+  .status {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .table-wrapper {
+    overflow-x: auto;
+    max-height: 75vh;
+    border: 1px solid var(--border);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    white-space: nowrap;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background-color: #f1f5f9;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    font-weight: bold;
+    color: #1e293b;
+  }
+  tr:nth-child(even) {
+    background-color: #f8fafc;
+  }
+  tr:hover {
+    background-color: #eff6ff;
+  }
+  /* 改行を含むメモ欄などの折り返し設定 */
+  td.wrap-col {
+    white-space: pre-wrap;
+    min-width: 180px;
+    max-width: 320px;
+    word-break: break-word;
+  }
+  td.center {
+    text-align: center;
+  }
+  .unmatched {
+    color: #94a3b8;
+    font-style: italic;
+  }
+  .error-box {
+    background-color: #fef2f2;
+    border: 1px solid #f87171;
+    color: #b91c1c;
+    padding: 12px;
+    border-radius: 4px;
+    margin-bottom: 16px;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header-bar">
+    <h1>商談・コミュニケーション一覧</h1>
+    <div class="controls">
+      <input type="text" id="searchInput" placeholder="キーワード検索（社名・氏名・メーカー等）..." oninput="filterTable()">
+      <button onclick="loadData()">最新データ再読込</button>
+      <button class="secondary" onclick="exportCSV()">表示データをCSV出力</button>
+    </div>
+  </div>
+
+  <div id="errorBox" class="error-box"></div>
+
+  <div class="status">
+    <span id="statusText">データを読み込んでいます...</span>
+    <span id="countText"></span>
+  </div>
+
+  <div class="table-wrapper">
+    <table id="dataTable">
+      <thead>
+        <tr>
+          <th>タイムスタンプ</th>
+          <th>来場社</th>
+          <th>部署</th>
+          <th>役職</th>
+          <th>氏名</th>
+          <th>対応メーカー</th>
+          <th>登録コード</th>
+          <th>関心度</th>
+          <th>希望項目</th>
+          <th>対象商品</th>
+          <th>メモ（申し送り事項）</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody">
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  // CSV1: コミュニケーションデータ（画像1）
+  const CSV1_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSxmWHAwArRtGosKX3vwFm834ccwgOcsRe1T3iqAsm4bRuExzAPgT3keaXg_4UB_bgoJNAFLObLYdPe/pub?gid=0&single=true&output=csv";
+  // CSV2: 受付マスタデータ（画像2）
+  const CSV2_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRMBhJHb7uwcE_rDrArB-RfhtC4vAjTZf5qis8HTgGd8vNXYgfK2eMyrS95CQyiUVaKmd0jo6tGaGfg/pub?gid=0&single=true&output=csv";
+
+  let mergedRecords = [];
+
+  // セル内の改行・カンマ・ダブルクォーテーションに対応したCSVパーサー
+  function parseCSV(text) {
+    const rows = [];
+    let currentRow = [];
+    let currentCell = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      const nextChar = text[i + 1];
+
+      if (inQuotes) {
+        if (char === '"' && nextChar === '"') {
+          currentCell += '"';
+          i++;
+        } else if (char === '"') {
+          inQuotes = false;
+        } else {
+          currentCell += char;
+        }
+      } else {
+        if (char === '"') {
+          inQuotes = true;
+        } else if (char === ',') {
+          currentRow.push(currentCell);
+          currentCell = '';
+        } else if (char === '\r' && nextChar === '\n') {
+          currentRow.push(currentCell);
+          rows.push(currentRow);
+          currentRow = [];
+          currentCell = '';
+          i++;
+        } else if (char === '\n' || char === '\r') {
+          currentRow.push(currentCell);
+          rows.push(currentRow);
+          currentRow = [];
+          currentCell = '';
+        } else {
+          currentCell += char;
+        }
+      }
+    }
+    if (currentCell !== '' || currentRow.length > 0) {
+      currentRow.push(currentCell);
+      rows.push(currentRow);
+    }
+    return rows;
+  }
+
+  async function loadData() {
+    const statusText = document.getElementById('statusText');
+    const errorBox = document.getElementById('errorBox');
+    errorBox.style.display = 'none';
+    statusText.textContent = 'Googleスプレッドシートからデータを取得中...';
+
+    try {
+      // キャッシュ回避のためタイムスタンプを付与して並行取得
+      const cacheBuster = `&t=${Date.now()}`;
+      const [res1, res2] = await Promise.all([
+        fetch(CSV1_URL + cacheBuster),
+        fetch(CSV2_URL + cacheBuster)
+      ]);
+
+      if (!res1.ok || !res2.ok) {
+        throw new Error(`HTTPエラー: CSV1(${res1.status}), CSV2(${res2.status})`);
+      }
+
+      const [text1, text2] = await Promise.all([res1.text(), res2.text()]);
+      const rows1 = parseCSV(text1);
+      const rows2 = parseCSV(text2);
+
+      // 2つ目のCSV（画像2）から「H列(index 7) => B:E列(index 1..4)」の検索用Mapを作成
+      const masterMap = new Map();
+      // 1行目はヘッダ（「タイムスタンプ」「社名」...）のため i = 1 から開始
+      for (let i = 1; i < rows2.length; i++) {
+        const r = rows2[i];
+        if (!r || r.length < 8) continue;
+        const regCode = (r[7] || '').trim(); // H列: 登録番号
+        if (regCode) {
+          masterMap.set(regCode, {
+            company: (r[1] || '').trim(),    // B列: 社名
+            department: (r[2] || '').trim(), // C列: 部署
+            position: (r[3] || '').trim(),   // D列: 役職
+            name: (r[4] || '').trim()        // E列: 氏名
+          });
+        }
+      }
+
+      // 1つ目のCSV（画像1）を走査して突合（画像1は1行目からデータのため i = 0 から開始）
+      mergedRecords = [];
+      for (let i = 0; i < rows1.length; i++) {
+        const r = rows1[i];
+        // 空行スキップ
+        if (!r || r.length === 0 || r.every(cell => cell.trim() === '')) continue;
+
+        const timestamp = (r[0] || '').trim(); // 画像1 A列
+        const maker     = (r[1] || '').trim(); // 画像1 B列
+        const code      = (r[2] || '').trim(); // 画像1 C列
+        const interest  = (r[3] || '').trim(); // 画像1 D列
+        const request   = (r[4] || '').trim(); // 画像1 E列
+        const product   = (r[5] || '').trim(); // 画像1 F列
+        const memo      = (r[6] || '').trim(); // 画像1 G列
+
+        // もし1行目にヘッダ行が混ざっていた場合の保険スキップ
+        if (i === 0 && (timestamp === 'タイムスタンプ' || code === '登録番号' || code === '登録コード')) {
+          continue;
+        }
+
+        const matched = masterMap.get(code);
+
+        mergedRecords.push({
+          timestamp,
+          company:    matched ? matched.company : '',
+          department: matched ? matched.department : '',
+          position:   matched ? matched.position : '',
+          name:       matched ? matched.name : '',
+          maker,
+          code,
+          interest,
+          request,
+          product,
+          memo,
+          isMatched: !!matched
+        });
+      }
+
+      const now = new Date().toLocaleTimeString('ja-JP');
+      statusText.textContent = `最終更新: ${now}`;
+      filterTable();
+
+    } catch (err) {
+      console.error(err);
+      statusText.textContent = '取得失敗';
+      errorBox.style.display = 'block';
+      errorBox.innerHTML = `データの読み込みに失敗しました。スプレッドシートの「ウェブに公開」設定やネットワーク接続を確認してください。<br><small>詳細: ${err.message}</small>`;
+    }
+  }
+
+  function renderTable(records) {
+    const tbody = document.getElementById('tableBody');
+    const countText = document.getElementById('countText');
+    tbody.innerHTML = '';
+
+    records.forEach(rec => {
+      const tr = document.createElement('tr');
+
+      const cells = [
+        { val: rec.timestamp },
+        { val: rec.company, unmatched: !rec.isMatched },
+        { val: rec.department },
+        { val: rec.position },
+        { val: rec.name },
+        { val: rec.maker },
+        { val: rec.code },
+        { val: rec.interest, className: 'center' },
+        { val: rec.request },
+        { val: rec.product, className: 'wrap-col' },
+        { val: rec.memo, className: 'wrap-col' }
+      ];
+
+      cells.forEach(c => {
+        const td = document.createElement('td');
+        td.textContent = c.val;
+        if (c.className) td.classList.add(c.className);
+        if (c.unmatched && !c.val) {
+          td.textContent = '（マスタ未一致）';
+          td.classList.add('unmatched');
+        }
+        tr.appendChild(td);
+      });
+
+      tbody.appendChild(tr);
+    });
+
+    countText.textContent = `表示件数: ${records.length} 件 / 全 ${mergedRecords.length} 件`;
+  }
+
+  function filterTable() {
+    const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
+    if (!keyword) {
+      renderTable(mergedRecords);
+      return;
+    }
+
+    const filtered = mergedRecords.filter(rec => {
+      return [
+        rec.timestamp,
+        rec.company,
+        rec.department,
+        rec.position,
+        rec.name,
+        rec.maker,
+        rec.code,
+        rec.interest,
+        rec.request,
+        rec.product,
+        rec.memo
+      ].some(field => field.toLowerCase().includes(keyword));
+    });
+
+    renderTable(filtered);
+  }
+
+  function exportCSV() {
+    const headers = [
+      'タイムスタンプ', '来場社', '部署', '役職', '氏名',
+      '対応メーカー', '登録コード', '関心度', '希望項目', '対象商品', 'メモ（申し送り事項）'
+    ];
+
+    const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
+    const targetRecords = keyword
+      ? mergedRecords.filter(rec =>
+          Object.values(rec).some(v => String(v).toLowerCase().includes(keyword))
+        )
+      : mergedRecords;
+
+    const escapeCsv = (val) => `"${String(val ?? '').replace(/"/g, '""')}"`;
+
+    const csvLines = [
+      headers.map(escapeCsv).join(','),
+      ...targetRecords.map(r => [
+        r.timestamp, r.company, r.department, r.position, r.name,
+        r.maker, r.code, r.interest, r.request, r.product, r.memo
+      ].map(escapeCsv).join(','))
+    ];
+
+    // Excelで文字化けしないようUTF-8 BOMを付与
+    const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+    const blob = new Blob([bom, csvLines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `商談データ一覧_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // 初期読み込み
+  window.addEventListener('DOMContentLoaded', loadData);
+</script>
+
+</body>
+</html>
