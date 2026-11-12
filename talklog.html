@@ -85,6 +85,7 @@
     margin-bottom: 8px;
     display: flex;
     justify-content: space-between;
+    align-items: center;
     flex-wrap: wrap;
     gap: 4px;
   }
@@ -198,7 +199,10 @@
   <div id="errorBox" class="error-box"></div>
 
   <div class="status">
-    <span id="statusText">データを読み込んでいます...</span>
+    <div>
+      <span id="statusText">データを読み込んでいます...</span>
+      <span style="margin-left: 12px; color: #b45309; font-weight: bold;">※黄色い塗りつぶしの行はメーカーＱＲを取得していないレコードです</span>
+    </div>
     <span id="countText"></span>
   </div>
 
@@ -334,7 +338,7 @@
         }
 
         const matched = masterMap.get(code);
-        const isHalfWidthMaker = maker.length > 0 && /^[\x20-\x7E]+$/.test(maker);
+        const isHalfWidthMaker = maker.length > 5 && /^[\x20-\x7E]+$/.test(maker);
 
         mergedRecords.push({
           timestamp,
@@ -395,7 +399,6 @@
         const valA = a[key] || '';
         const valB = b[key] || '';
 
-        // 空欄は昇順・降順に関わらず末尾に配置
         if (valA === '' && valB === '') return 0;
         if (valA === '') return 1;
         if (valB === '') return -1;
